@@ -159,6 +159,8 @@
                         durationStr = `Raw: ${durationSecs}`;
                     }
 
+                    const debugInfo = JSON.stringify(video).replace(/"/g, '&quot;');
+
 
                     card.innerHTML = `
                         <button class="fav-btn ${isFavoriteSync(channel)}" onclick="toggleFavorite('${channel}')">❤️</button>
