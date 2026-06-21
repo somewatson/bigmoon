@@ -153,13 +153,19 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
         cmd = [
             'ffmpeg',
             '-y',
+            '-vaapi_device', '/dev/dri/renderD128',
             '-i', input_path,
+        ]
+        if is_hw:
+            cmd.extend(['-vf', 'format=nv12,hwupload'])
+        
+        cmd.extend([
             '-c:v', encoder,
             '-b:v', p['bitrate'],
             '-preset', current_preset,
             '-c:a', 'copy',
             output_path
-        ]
+        ])
         
         update_task_progress(task_id, 'processing')
         
