@@ -1,10 +1,27 @@
-FROM python:3.11-slim
+FROM ubuntu:22.04
+
+# Avoid prompts during package installation
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install prerequisites for adding the Intel repository
+RUN apt-get update && apt-get install -y \
+    wget \
+    gpg \
+    ca-certificates \
+    sudo \
+    && rm -rf /var/lib/apt/lists/*
+
+# Add Intel GPU repositories
+RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+RUN apt-get update && apt-get dist-upgrade -y
 
 # Install system dependencies
-# ffmpeg for video processing
-# intel-media-va-driver-non-free and libvpl for Intel QSV GPU support (AV1 requires non-free and VPL)
+# ffmpeg for video processing, intel-media-va-driver-non-free and libvpl for Intel QSV GPU support
 # vainfo for debugging GPU acceleration
-RUN apt-get update && apt-get install -y \
+RUN apt-get install -y \
+    python3 \
+    python3-pip \
     ffmpeg \
     intel-media-va-driver-non-free \
     libvpl2 \
@@ -14,11 +31,14 @@ RUN apt-get update && apt-get install -y \
 # Force use of the Intel iHD driver
 ENV LIBVA_DRIVER_NAME=iHD
 
+# Setup python symlink
+RUN ln -s /usr/bin/python3 /usr/bin/python
+
 WORKDIR /app
 
 # Install python dependencies
 COPY app/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
 
 # Copy application code
 COPY app/ .
@@ -29,5 +49,5 @@ RUN mkdir -p /data /app/downloads
 # Expose the Flask port
 EXPOSE 5000
 
-# Run the application with PYTHONUNBUFFERED=1 and --debug flag to ensure logs are printed immediately
+# Run the application
 CMD ["env", "PYTHONUNBUFFERED=1", "python", "main.py", "--debug"]
