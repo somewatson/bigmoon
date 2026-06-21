@@ -19,17 +19,20 @@ RUN apt-get update && apt-get install -y \
     libnuma-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install SVT-AV1
-RUN git clone https://github.com/SVT-AV1/SVT-AV1.git /tmp/SVT-AV1 && \
-    cd /tmp/SVT-AV1 && \
+# Install SVT-AV1 from GitLab
+RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master.tar.gz && \
+    tar -xvf SVT-AV1-master.tar.gz && \
+    cd SVT-AV1-master && \
     mkdir build && cd build && \
     cmake .. && \
     make -j$(nproc) && \
-    make install
+    make install && \
+    cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
 
 # Build FFmpeg with QSV and SVT-AV1 support
-RUN git clone https://git.ffmpeg.org/ffmpeg.git /tmp/ffmpeg && \
-    cd /tmp/ffmpeg && \
+RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.xz && \
+    tar -xvf ffmpeg-snapshot.tar.xz && \
+    cd ffmpeg-snapshot-$(ls -d ffmpeg-snapshot-* | head -n 1) && \
     ./configure \
         --enable-gpl \
         --enable-nonfree \
@@ -41,7 +44,8 @@ RUN git clone https://git.ffmpeg.org/ffmpeg.git /tmp/ffmpeg && \
         --extra-cflags="-I/usr/local/include" \
         --extra-ldflags="-L/usr/local/lib" && \
     make -j$(nproc) && \
-    make install
+    make install && \
+    cd .. && rm -rf ffmpeg-snapshot*
 
 # --- Stage 2: Final Image ---
 FROM ubuntu:22.04
