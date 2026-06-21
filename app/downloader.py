@@ -107,19 +107,19 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     
     presets = {
         'fast': {
-            'bitrate': '2M', 
+            'crf': '28', 
             'h264_sw': 'veryfast', 'h264_hw': 'veryfast',
             'h265_sw': 'veryfast', 'h265_hw': 'veryfast',
             'av1_sw': '8', 'av1_hw': 'veryfast'
         },
         'balanced': {
-            'bitrate': '5M', 
+            'crf': '23', 
             'h264_sw': 'medium', 'h264_hw': 'balanced',
             'h265_sw': 'medium', 'h265_hw': 'balanced',
             'av1_sw': '6', 'av1_hw': 'fast'
         },
         'high': {
-            'bitrate': '10M', 
+            'crf': '18', 
             'h264_sw': 'slow', 'h264_hw': 'quality',
             'h265_sw': 'slow', 'h265_hw': 'quality',
             'av1_sw': '4', 'av1_hw': 'quality'
@@ -161,7 +161,16 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
         
         cmd.extend([
             '-c:v', encoder,
-            '-b:v', p['bitrate'],
+        ])
+        
+        if is_hw:
+            # VA-API doesn't use -crf, it uses -global_quality
+            cmd.extend(['-global_quality', p['crf']])
+        else:
+            # Software encoders use -crf
+            cmd.extend(['-crf', p['crf']])
+
+        cmd.extend([
             '-preset', current_preset,
             '-c:a', 'copy',
             output_path
