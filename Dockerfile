@@ -16,9 +16,18 @@ RUN apt-get update && apt-get install -y \
     libva-dev \
     libx264-dev \
     libx265-dev \
-    libsvtav1-dev \
     libnuma-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Build SVT-AV1 from source to meet version requirement (>= 0.9.0)
+RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master.tar.gz && \
+    tar -xvf SVT-AV1-master.tar.gz && \
+    cd SVT-AV1-master && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install && \
+    cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
 
 # Build FFmpeg with QSV and SVT-AV1 support
 RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
@@ -66,7 +75,6 @@ RUN apt-get install -y \
     libnuma1 \
     libx264-dev \
     libx265-dev \
-    libsvtav1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy FFmpeg and libraries from builder stage
