@@ -15,3 +15,18 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+class Favorite(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    channel_name = db.Column(db.String(100), nullable=False)
+
+class DownloadTask(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    filename = db.Column(db.String(255))
+    video_id = db.Column(db.String(100))
+    status = db.Column(db.String(20), default='pending') # pending, downloading, completed, error
+    progress = db.Column(db.Float, default=0.0)
+    task_type = db.Column(db.String(20), default='download') # download, compress
+    created_at = db.Column(db.DateTime, server_default=db.func.now())

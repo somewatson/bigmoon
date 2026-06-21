@@ -1,13 +1,13 @@
 import os
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 import requests
 
-from models import db, User
-from downloader import start_download_async
+from models import db, User, Favorite, DownloadTask
+from downloader import start_download_async, start_compress_async
 
 
 
@@ -131,6 +131,47 @@ def list_videos():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/favorites', methods=['GET', 'POST'])
+@login_required
+def manage_favorites():
+    if request.method == 'POST':
+        data = request.json
+        channel = data.get('channel')
+        if not channel:
+            return jsonify({'error': 'Channel name required'}), 400
+        
+        # Toggle favorite
+        fav = Favorite.query.filter_by(user_id=current_user.id, channel_name=channel).first()
+        if fav:
+            db.session.delete(fav)
+            db.session.commit()
+            return jsonify({'status': 'removed'})
+        else:
+            new_fav = Favorite(user_id=current_user.id, channel_name=channel)
+            db.session.add(new_fav)
+            db.session.commit()
+            return jsonify({'status': 'added'})
+            
+    # GET all favorites
+    favs = Favorite.query.filter_by(user_id=current_user.id).all()
+    return jsonify({'favorites': [f.channel_name for f in favs]})
+
+@app.route('/api/tasks', methods=['GET'])
+@login_required
+def list_tasks():
+    tasks = DownloadTask.query.filter_by(user_id=current_user.id).order_by(DownloadTask.created_at.desc()).all()
+    return jsonify({
+        'tasks': [{
+            'id': t.id,
+            'filename': t.filename,
+            'status': t.status,
+            'progress': t.progress,
+            'type': t.task_type,
+            'video_id': t.video_id
+        } for t in tasks]
+    })
+
+
 @app.route('/api/download', methods=['POST'])
 @login_required
 def download_video():
@@ -141,9 +182,56 @@ def download_video():
     if not url or not video_id:
         return jsonify({'error': 'URL and ID are required'}), 400
     
-    start_download_async(url, video_id)
-    return jsonify({'message': 'Download started in background'})
+    # Create task record
+    task = DownloadTask(user_id=current_user.id, video_id=video_id, status='pending', task_type='download')
+    db.session.add(task)
+    db.session.commit()
+    
+    start_download_async(url, video_id, task.id)
+    return jsonify({'message': 'Download started in background', 'taskId': task.id})
 
+@app.route('/api/compress', methods=['POST'])
+@login_required
+def compress_video():
+    data = request.json
+    filename = data.get('filename')
+    preset = data.get('preset', 'balanced')
+    
+    if not filename:
+        return jsonify({'error': 'Filename is required'}), 400
+    
+    # Create task record
+    task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress')
+    db.session.add(task)
+    db.session.commit()
+    
+    start_compress_async(filename, preset, task.id, current_user.id)
+    return jsonify({'message': 'Compression started in background', 'taskId': task.id})
+
+@app.route('/api/files', methods=['GET'])
+@login_required
+def list_files():
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    try:
+        files = os.listdir(downloads_dir)
+        # Filter for the user's files or allow all if admin
+        user_files = [f for f in files if any(t.filename == f for t in DownloadTask.query.filter_by(user_id=current_user.id).all())]
+        if current_user.role == 'admin':
+            user_files = files
+        return jsonify({'files': user_files})
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/downloads/<path:filename>')
+@login_required
+def download_file(filename):
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    # Verify user owns this file
+    task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
+    if not task and current_user.role != 'admin':
+        return "Unauthorized", 403
+    
+    return send_from_directory(downloads_dir, filename, as_attachment=True)
 
 if __name__ == '__main__':
     bootstrap_admin()

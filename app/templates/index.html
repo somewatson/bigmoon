@@ -3,49 +3,123 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Moon - VODs</title>
+    <title>Big Moon - VOD Manager</title>
     <style>
-        body { font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
-        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
-        .nav a { color: #9146ff; text-decoration: none; font-weight: bold; }
+        :root { --primary: #9146ff; --primary-hover: #772ce8; --bg: #1a1a1a; --card-bg: #2a2a2a; --text: #ffffff; --text-dim: #aaa; --success: #00c853; --error: #ff4d4d; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
+        
+        /* Sidebar */
+        .sidebar { width: 260px; background: #111; display: flex; flex-direction: column; padding: 20px; border-right: 1px solid #333; }
+        .sidebar h1 { font-size: 1.5rem; margin-bottom: 30px; display: flex; align-items: center; gap: 10px; }
+        .nav-item { padding: 12px 15px; margin: 5px 0; cursor: pointer; border-radius: 6px; transition: 0.2s; color: var(--text-dim); text-decoration: none; display: block; font-weight: 500; }
+        .nav-item:hover { background: #222; color: white; }
+        .nav-item.active { background: var(--primary); color: white; }
+        .logout-btn { margin-top: auto; color: var(--error); text-align: center; }
+
+        /* Main Content */
+        .main-content { flex: 1; display: flex; flex-direction: column; overflow-y: auto; padding: 30px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* Components */
         .search-section { display: flex; gap: 10px; margin-bottom: 30px; }
-        input { padding: 10px; border-radius: 4px; border: 1px solid #444; background: #333; color: white; flex-grow: 1; }
-        button { padding: 10px 20px; background: #9146ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:hover { background: #772ce8; }
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
-        .video-card { background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; }
-        .video-card h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
-        .video-card p { font-size: 0.9rem; color: #aaa; margin-bottom: 15px; }
-        .btn-download { background: #00c853; }
-        .btn-download:hover { background: #00a844; }
+        input { padding: 12px; border-radius: 6px; border: 1px solid #444; background: #333; color: white; flex-grow: 1; font-size: 1rem; }
+        button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
+        button:hover { background: var(--primary-hover); }
+        
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .video-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid #444; transition: 0.2s; position: relative; }
+        .video-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+        .video-card img { width: 100%; height: 160px; object-fit: cover; }
+        .video-card-body { padding: 15px; }
+        .video-card-body h3 { margin: 0 0 10px 0; font-size: 1rem; line-height: 1.4; }
+        .video-card-body p { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 15px; }
+        
+        .fav-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: 0.2s; }
+        .fav-btn.active { color: #ff4d4d; }
+
+        .task-list { display: flex; flex-direction: column; gap: 15px; }
+        .task-item { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid #444; display: flex; align-items: center; gap: 20px; }
+        .task-info { flex: 1; }
+        .task-info h4 { margin: 0 0 5px 0; font-size: 0.9rem; }
+        .progress-container { width: 100%; background: #444; height: 8px; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: 0.3s; }
+        .task-status { font-size: 0.8rem; color: var(--text-dim); }
+        .download-link { background: var(--success); color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
+
+        .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
+        .fav-card { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid #444; display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
+        .fav-card:hover { background: #333; border-color: var(--primary); }
+
+        .compress-section { display: flex; flex-direction: column; gap: 20px; }
+        .file-item { background: var(--card-bg); padding: 15px; border-radius: 10px; border: 1px solid #444; display: flex; justify-content: space-between; align-items: center; }
+        .compress-controls { display: flex; gap: 10px; align-items: center; }
+        select { padding: 8px; border-radius: 4px; background: #333; color: white; border: 1px solid #444; }
     </style>
 </head>
 <body>
-    <div class="nav">
+    <div class="sidebar">
         <h1>🌙 Big Moon</h1>
-        <div>
-            {% if current_user.role == 'admin' %}
-                <a href="{{ url_for('admin_dashboard') }}">Admin</a> |
-            {% endif %}
-            <a href="{{ url_for('logout') }}">Logout</a>
+        <a class="nav-item active" onclick="showTab('search')" id="nav-search">🔍 Search & Download</a>
+        <a class="nav-item" onclick="showTab('favorites')" id="nav-favorites">❤️ Favorites</a>
+        <a class="nav-item" onclick="showTab('compress')" id="nav-compress">⚡ Compress (QSV)</a>
+        <a class="nav-item" onclick="showTab('tasks')" id="nav-tasks">⏳ Active Tasks</a>
+        <a class="nav-item" href="{{ url_for('admin_dashboard') }}" id="nav-admin" style="display: {% if current_user.role == 'admin' %}block{% else %}none{% endif %};">🛠️ Admin</a>
+        <a class="nav-item logout-btn" href="{{ url_for('logout') }}">Logout</a>
+    </div>
+
+    <div class="main-content">
+        <!-- Search Tab -->
+        <div id="tab-search" class="tab-content active">
+            <div class="search-section">
+                <input type="text" id="channelInput" placeholder="Enter Twitch channel name...">
+                <button onclick="searchVideos()">Search</button>
+            </div>
+            <div id="videoGrid" class="video-grid"></div>
+        </div>
+
+        <!-- Favorites Tab -->
+        <div id="tab-favorites" class="tab-content">
+            <h2>Favorite Channels</h2>
+            <div id="favoritesGrid" class="favorites-grid"></div>
+        </div>
+
+        <!-- Compress Tab -->
+        <div id="tab-compress" class="tab-content">
+            <h2>Compress Existing VODs</h2>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">Process files using Intel QuickSync hardware acceleration.</p>
+            <div id="fileList" class="compress-section"></div>
+        </div>
+
+        <!-- Tasks Tab -->
+        <div id="tab-tasks" class="tab-content">
+            <h2>Task Queue</h2>
+            <div id="taskList" class="task-list"></div>
         </div>
     </div>
 
-    <div class="search-section">
-        <input type="text" id="channelInput" placeholder="Enter Twitch channel name...">
-        <button onclick="searchVideos()">Search</button>
-    </div>
-
-    <div id="videoGrid" class="video-grid"></div>
-
     <script>
+        let currentTab = 'search';
+
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabId).classList.add('active');
+            document.getElementById('nav-' + tabId).classList.add('active');
+            currentTab = tabId;
+
+            if(tabId === 'favorites') loadFavorites();
+            if(tabId === 'compress') loadFiles();
+            if(tabId === 'tasks') loadTasks();
+        }
+
         async function searchVideos() {
             const channel = document.getElementById('channelInput').value;
             const grid = document.getElementById('videoGrid');
             if (!channel) return;
 
-            grid.innerHTML = 'Searching...';
-
+            grid.innerHTML = '<p>Searching Twitch...</p>';
             try {
                 const response = await fetch('/api/videos', {
                     method: 'POST',
@@ -53,41 +127,148 @@
                     body: JSON.stringify({ channel })
                 });
                 const data = await response.json();
-
-                if (data.error) {
-                    grid.innerHTML = `<p style="color: red;">${data.error}</p>`;
-                    return;
-                }
+                if (data.error) throw new Error(data.error);
 
                 grid.innerHTML = '';
                 data.videos.forEach(video => {
                     const card = document.createElement('div');
                     card.className = 'video-card';
                     card.innerHTML = `
-                        <h3>${video.title}</h3>
-                        <p>Created: ${new Date(video.created_at).toLocaleDateString()}</p>
-                        <button class="btn-download" onclick="downloadVideo('${video.url}', '${video.id}')">Download</button>
+                        <button class="fav-btn ${await isFavorite(channel, video.id)}" onclick="toggleFavorite('${channel}')">❤️</button>
+                        <img src="${video.thumbnail_url}" alt="thumbnail">
+                        <div class="video-card-body">
+                            <h3>${video.title}</h3>
+                            <p>Created: ${new Date(video.created_at).toLocaleDateString()}</p>
+                            <button onclick="downloadVideo('${video.url}', '${video.id}')">Download</button>
+                        </div>
                     `;
                     grid.appendChild(card);
                 });
             } catch (e) {
-                grid.innerHTML = '<p style="color: red;">An error occurred while fetching videos.</p>';
+                grid.innerHTML = `<p style="color: var(--error)">${e.message}</p>`;
             }
         }
 
-        async function downloadVideo(url, id) {
-            try {
-                const response = await fetch('/api/download', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ url, id })
-                });
-                const data = await response.json();
-                alert(data.message || data.error);
-            } catch (e) {
-                alert('Error starting download');
-            }
+        async function isFavorite(channel, videoId) {
+            const response = await fetch('/api/favorites');
+            const data = await response.json();
+            return data.favorites.includes(channel) ? 'active' : '';
         }
+
+        async function toggleFavorite(channel) {
+            await fetch('/api/favorites', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ channel })
+            });
+            // Refresh the UI if we are in favorites tab or search result
+            if(currentTab === 'favorites') loadFavorites();
+            searchVideos(); // Simple way to update the heart icons
+        }
+
+        async function downloadVideo(url, id) {
+            const response = await fetch('/api/download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url, id })
+            });
+            const data = await response.json();
+            if(data.taskId) showTab('tasks');
+        }
+
+        async function loadFavorites() {
+            const response = await fetch('/api/favorites');
+            const data = await response.json();
+            const grid = document.getElementById('favoritesGrid');
+            grid.innerHTML = '';
+            data.favorites.forEach(channel => {
+                const card = document.createElement('div');
+                card.className = 'fav-card';
+                card.innerHTML = `
+                    <span>${channel}</span>
+                    <button onclick="removeFavorite('${channel}', event)">✕</button>
+                `;
+                card.onclick = () => {
+                    document.getElementById('channelInput').value = channel;
+                    showTab('search');
+                    searchVideos();
+                };
+                grid.appendChild(card);
+            });
+        }
+
+        async function removeFavorite(channel, event) {
+            event.stopPropagation();
+            await toggleFavorite(channel);
+        }
+
+        async function loadFiles() {
+            const response = await fetch('/api/files');
+            const data = await response.json();
+            const list = document.getElementById('fileList');
+            list.innerHTML = '';
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                item.innerHTML = `
+                    <span>${file}</span>
+                    <div class="compress-controls">
+                        <select id="preset-${file}">
+                            <option value="fast">Fast</option>
+                            <option value="balanced" selected>Balanced</option>
+                            <option value="high">High Quality</option>
+                        </select>
+                        <button onclick="compressFile('${file}')">Compress</button>
+                    </div>
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        async function compressFile(file) {
+            const preset = document.getElementById(`preset-${file}`).value;
+            const response = await fetch('/api/compress', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ filename: file, preset })
+            });
+            const data = await response.json();
+            if(data.taskId) showTab('tasks');
+        }
+
+        async function loadTasks() {
+            const response = await fetch('/api/tasks');
+            const data = await response.json();
+            const list = document.getElementById('taskList');
+            list.innerHTML = '';
+            data.tasks.forEach(task => {
+                const item = document.createElement('div');
+                item.className = 'task-item';
+                
+                let actionHtml = '';
+                if(task.status === 'completed') {
+                    actionHtml = `<a class="download-link" href="/downloads/${task.filename}">Download File</a>`;
+                } else if(task.status === 'error') {
+                    actionHtml = `<span style="color: var(--error); font-size: 0.8rem;">Failed</span>`;
+                } else {
+                    actionHtml = `<span class="task-status">${task.status}...</span>`;
+                }
+
+                item.innerHTML = `
+                    <div class="task-info">
+                        <h4>${task.filename || 'VOD ' + (task.video_id || '')}</h4>
+                        <div class="progress-container">
+                            <div class="progress-bar" style="width: ${task.progress}%"></div>
+                        </div>
+                    </div>
+                    ${actionHtml}
+                `;
+                list.appendChild(item);
+            });
+        }
+
+        // Polling for tasks
+        setInterval(loadTasks, 2000);
     </script>
 </body>
 </html>

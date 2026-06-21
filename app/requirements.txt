@@ -4,3 +4,4 @@ flask-login
 requests
 python-dotenv
 yt-dlp
+pytest
