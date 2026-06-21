@@ -106,18 +106,33 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     output_path = os.path.join(DOWNLOADS_DIR, output_filename)
     
     presets = {
-        'fast': {'bitrate': '2M', 'sw_preset': 'veryfast', 'hw_preset': 'veryfast'},
-        'balanced': {'bitrate': '5M', 'sw_preset': 'medium', 'hw_preset': 'balanced'},
-        'high': {'bitrate': '10M', 'sw_preset': 'slow', 'hw_preset': 'quality'}
+        'fast': {
+            'bitrate': '2M', 
+            'h264_sw': 'veryfast', 'h264_hw': 'veryfast',
+            'h265_sw': 'veryfast', 'h265_hw': 'veryfast',
+            'av1_sw': '8', 'av1_hw': 'veryfast'
+        },
+        'balanced': {
+            'bitrate': '5M', 
+            'h264_sw': 'medium', 'h264_hw': 'balanced',
+            'h265_sw': 'medium', 'h265_hw': 'balanced',
+            'av1_sw': '6', 'av1_hw': 'fast'
+        },
+        'high': {
+            'bitrate': '10M', 
+            'h264_sw': 'slow', 'h264_hw': 'quality',
+            'h265_sw': 'slow', 'h265_hw': 'quality',
+            'av1_sw': '4', 'av1_hw': 'quality'
+        }
     }
     
     p = presets.get(preset, presets['balanced'])
     
     codec_map = {
-        'H.264': {'hw': 'h264_qsv', 'sw': 'libx264'},
-        'H.265': {'hw': 'hevc_qsv', 'sw': 'libx265'},
-        'AV1': {'hw': 'av1_qsv', 'sw': 'libsvtav1'},
-        'x264': {'hw': None, 'sw': 'libx264'}
+        'H.264': {'hw': 'h264_qsv', 'sw': 'libx264', 'prefix': 'h264'},
+        'H.265': {'hw': 'hevc_qsv', 'sw': 'libx265', 'prefix': 'h265'},
+        'AV1': {'hw': 'av1_qsv', 'sw': 'libsvtav1', 'prefix': 'av1'},
+        'x264': {'hw': None, 'sw': 'libx264', 'prefix': 'h264'}
     }
     
     mapping = codec_map.get(codec, codec_map['H.264'])
@@ -129,8 +144,11 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     last_error = ""
 
     for encoder in encoders:
-        # Determine which preset to use based on encoder type
-        current_preset = p['hw_preset'] if 'qsv' in encoder else p['sw_preset']
+        # Determine which preset to use based on encoder and hardware/software
+        prefix = mapping['prefix']
+        is_hw = 'qsv' in encoder
+        preset_key = f"{prefix}_{'hw' if is_hw else 'sw'}"
+        current_preset = p.get(preset_key, 'medium')
         
         cmd = [
             'ffmpeg',
