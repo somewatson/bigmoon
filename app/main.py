@@ -222,6 +222,19 @@ def list_files():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@app.route('/api/library', methods=['GET'])
+@login_required
+def list_library():
+    tasks = DownloadTask.query.filter_by(user_id=current_user.id, status='completed').all()
+    return jsonify({
+        'files': [{
+            'filename': t.filename,
+            'video_id': t.video_id,
+            'type': t.task_type,
+            'created_at': t.created_at
+        } for t in tasks]
+    })
+
 @app.route('/downloads/<path:filename>')
 @login_required
 def download_file(filename):

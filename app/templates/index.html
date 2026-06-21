@@ -62,6 +62,7 @@
         <h1>🌙 Big Moon</h1>
         <a class="nav-item active" onclick="showTab('search')" id="nav-search">🔍 Search & Download</a>
         <a class="nav-item" onclick="showTab('favorites')" id="nav-favorites">❤️ Favorites</a>
+        <a class="nav-item" onclick="showTab('library')" id="nav-library">📚 My Library</a>
         <a class="nav-item" onclick="showTab('compress')" id="nav-compress">⚡ Compress (QSV)</a>
         <a class="nav-item" onclick="showTab('tasks')" id="nav-tasks">⏳ Active Tasks</a>
         <a class="nav-item" href="{{ url_for('admin_dashboard') }}" id="nav-admin" style="display: {% if current_user.role == 'admin' %}block{% else %}none{% endif %};">🛠️ Admin</a>
@@ -82,6 +83,13 @@
         <div id="tab-favorites" class="tab-content">
             <h2>Favorite Channels</h2>
             <div id="favoritesGrid" class="favorites-grid"></div>
+        </div>
+
+        <!-- Library Tab -->
+        <div id="tab-library" class="tab-content">
+            <h2>My Library</h2>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">All your completed downloads.</p>
+            <div id="libraryList" class="task-list"></div>
         </div>
 
         <!-- Compress Tab -->
@@ -116,6 +124,7 @@
             window.currentTab = tabId;
 
             if(tabId === 'favorites') loadFavorites();
+            if(tabId === 'library') loadLibrary();
             if(tabId === 'compress') loadFiles();
             if(tabId === 'tasks') loadTasks();
         }
@@ -185,6 +194,31 @@
             });
             const data = await response.json();
             if(data.taskId) window.showTab('tasks');
+        }
+
+        async function loadLibrary() {
+            const response = await fetch('/api/library');
+            const data = await response.json();
+            const list = document.getElementById('libraryList');
+            list.innerHTML = '';
+            
+            if(data.files.length === 0) {
+                list.innerHTML = '<p>No completed downloads yet.</p>';
+                return;
+            }
+
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'task-item';
+                item.innerHTML = `
+                    <div class="task-info">
+                        <h4>${file.filename}</h4>
+                        <p style="font-size: 0.8rem; color: var(--text-dim);">Type: ${file.type} | Created: ${new Date(file.created_at).toLocaleString()}</p>
+                    </div>
+                    <a class="download-link" href="/downloads/${file.filename}">Download to PC</a>
+                `;
+                list.appendChild(item);
+            });
         }
 
         async function loadFavorites() {
@@ -283,6 +317,7 @@
         window.toggleFavorite = toggleFavorite;
         window.downloadVideo = downloadVideo;
         window.loadFavorites = loadFavorites;
+        window.loadLibrary = loadLibrary;
         window.removeFavorite = removeFavorite;
         window.loadFiles = loadFiles;
         window.compressFile = compressFile;

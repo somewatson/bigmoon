@@ -20,6 +20,15 @@ def update_task_progress(task_id, status, progress=0.0, filename=None):
             if filename: task.filename = filename
             db.session.commit()
 
+def cleanup_temp_files():
+    """Removes yt-dlp temporary files from the downloads directory."""
+    try:
+        for file in os.listdir(DOWNLOADS_DIR):
+            if file.endswith(('.part', '.temp', '.ytdl')):
+                os.remove(os.path.join(DOWNLOADS_DIR, file))
+    except Exception as e:
+        print(f"Error during cleanup: {e}")
+
 def download_vod(url, video_id, task_id):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
     
@@ -44,10 +53,7 @@ def download_vod(url, video_id, task_id):
             bufsize=1
         )
         
-        # Regex to capture percentage from yt-dlp: [download]  12.5% of ...
         progress_re = re.compile(r'\[download\]\s+(\d+\.?\d*)%')
-        
-        # Try to find filename from output
         filename = None
 
         while True:
@@ -55,13 +61,11 @@ def download_vod(url, video_id, task_id):
             if not line:
                 break
             
-            # Update progress
             match = progress_re.search(line)
             if match:
                 progress = float(match.group(1))
                 update_task_progress(task_id, progress=progress)
             
-            # Capture filename when it starts writing
             if '[download] Destination:' in line:
                 filename = line.split('Destination: ')[-1].strip()
                 update_task_progress(task_id, filename=filename)
@@ -69,12 +73,15 @@ def download_vod(url, video_id, task_id):
         process.wait()
         if process.returncode == 0:
             update_task_progress(task_id, 'completed', progress=100.0)
+            cleanup_temp_files()
         else:
             update_task_progress(task_id, 'error')
+            cleanup_temp_files()
             
     except Exception as e:
         print(f"Error downloading {video_id}: {e}")
         update_task_progress(task_id, 'error')
+        cleanup_temp_files()
 
 def compress_video(input_filename, preset, task_id, user_id):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
@@ -82,10 +89,6 @@ def compress_video(input_filename, preset, task_id, user_id):
     output_filename = f"compressed_{preset}_{input_filename}"
     output_path = os.path.join(DOWNLOADS_DIR, output_filename)
     
-    # QSV Presets
-    # Fast: Low bitrate, high speed
-    # Balanced: Standard
-    # High: High bitrate, slower
     presets = {
         'fast': {'bitrate': '2M', 'preset': 'veryfast'},
         'balanced': {'bitrate': '5M', 'preset': 'medium'},
@@ -94,9 +97,6 @@ def compress_video(input_filename, preset, task_id, user_id):
     
     p = presets.get(preset, presets['balanced'])
     
-    # Intel QSV Compression Command
-    # -c:v h264_qsv: Use Intel hardware encoder
-    # -b:v: Set target bitrate
     cmd = [
         'ffmpeg',
         '-y',
@@ -104,19 +104,23 @@ def compress_video(input_filename, preset, task_id, user_id):
         '-c:v', 'h264_qsv',
         '-b:v', p['bitrate'],
         '-preset', p['preset'],
-        '-c:a', 'copy', # copy audio to avoid re-encoding
+        '-c:a', 'copy',
         output_path
     ]
     
     update_task_progress(task_id, 'processing')
     
     try:
-        # Note: FFmpeg progress parsing is more complex. 
-        # For simplicity in this MVP, we'll mark as processing and then completed.
-        subprocess.run(cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        # Use capture_output to get stdout and stderr for logging
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
         update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename)
+    except subprocess.CalledProcessError as e:
+        print(f"FFmpeg Error for {input_filename}:")
+        print(f"STDOUT: {e.stdout}")
+        print(f"STDERR: {e.stderr}")
+        update_task_progress(task_id, 'error')
     except Exception as e:
-        print(f"Error compressing {input_filename}: {e}")
+        print(f"Unexpected Error compressing {input_filename}: {e}")
         update_task_progress(task_id, 'error')
 
 def start_download_async(url, video_id, task_id):
