@@ -273,6 +273,7 @@ def compress_video():
     data = request.json
     filename = data.get('filename')
     preset = data.get('preset', 'balanced')
+    codec = data.get('codec', 'H.264')
     
     if not filename:
         return jsonify({'error': 'Filename is required'}), 400
@@ -282,7 +283,7 @@ def compress_video():
     db.session.add(task)
     db.session.commit()
     
-    start_compress_async(filename, preset, task.id, current_user.id)
+    start_compress_async(filename, preset, task.id, current_user.id, codec)
     return jsonify({'message': 'Compression started in background', 'taskId': task.id})
 
 @app.route('/api/files', methods=['GET'])

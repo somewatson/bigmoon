@@ -263,6 +263,12 @@
                     item.innerHTML = `
                         <span>${file}</span>
                         <div class="compress-controls">
+                            <select id="codec-${encodeURIComponent(file)}">
+                                <option value="H.264" selected>H.264</option>
+                                <option value="H.265">H.265</option>
+                                <option value="AV1">AV1</option>
+                                <option value="x264">x264 (SW)</option>
+                            </select>
                             <select id="preset-${encodeURIComponent(file)}">
                                 <option value="fast">Fast</option>
                                 <option value="balanced" selected>Balanced</option>
@@ -273,7 +279,8 @@
                     `;
                     
                     item.querySelector('.compress-btn').onclick = () => {
-                        compressFile(decodeURIComponent(file));
+                        const codec = document.getElementById(`codec-${encodeURIComponent(file)}`).value;
+                        compressFile(decodeURIComponent(file), codec);
                     };
                     
                     list.appendChild(item);
@@ -281,12 +288,12 @@
             });
         }
 
-        async function compressFile(file) {
+        async function compressFile(file, codec) {
             const preset = document.getElementById(`preset-${encodeURIComponent(file)}`).value;
             const response = await fetch('/api/compress', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ filename: file, preset })
+                body: JSON.stringify({ filename: file, preset, codec })
             });
             const data = await response.json();
             if(data.taskId) window.showTab('tasks');

@@ -99,32 +99,46 @@ def download_vod(url, video_id, task_id):
         update_task_progress(task_id, 'error')
         cleanup_temp_files()
 
-def compress_video(input_filename, preset, task_id, user_id):
+def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
     input_path = os.path.join(DOWNLOADS_DIR, input_filename)
-    output_filename = f"compressed_{preset}_{input_filename}"
+    output_filename = f"compressed_{codec}_{preset}_{input_filename}"
     output_path = os.path.join(DOWNLOADS_DIR, output_filename)
     
     presets = {
-        'fast': {'bitrate': '2M', 'preset': 'veryfast'},
-        'balanced': {'bitrate': '5M', 'preset': 'medium'},
-        'high': {'bitrate': '10M', 'preset': 'slow'}
+        'fast': {'bitrate': '2M', 'sw_preset': 'veryfast', 'hw_preset': 'veryfast'},
+        'balanced': {'bitrate': '5M', 'sw_preset': 'medium', 'hw_preset': 'balanced'},
+        'high': {'bitrate': '10M', 'sw_preset': 'slow', 'hw_preset': 'quality'}
     }
     
     p = presets.get(preset, presets['balanced'])
     
-    # Attempt QSV first, fallback to libx264 if it fails
-    encoders = ['h264_qsv', 'libx264']
+    codec_map = {
+        'H.264': {'hw': 'h264_qsv', 'sw': 'libx264'},
+        'H.265': {'hw': 'hevc_qsv', 'sw': 'libx265'},
+        'AV1': {'hw': 'av1_qsv', 'sw': 'libsvtav1'},
+        'x264': {'hw': None, 'sw': 'libx264'}
+    }
+    
+    mapping = codec_map.get(codec, codec_map['H.264'])
+    encoders = []
+    if mapping['hw']:
+        encoders.append(mapping['hw'])
+    encoders.append(mapping['sw'])
+    
     last_error = ""
 
     for encoder in encoders:
+        # Determine which preset to use based on encoder type
+        current_preset = p['hw_preset'] if 'qsv' in encoder else p['sw_preset']
+        
         cmd = [
             'ffmpeg',
             '-y',
             '-i', input_path,
             '-c:v', encoder,
             '-b:v', p['bitrate'],
-            '-preset', p['preset'] if encoder == 'libx264' else 'medium',
+            '-preset', current_preset,
             '-c:a', 'copy',
             output_path
         ]
@@ -134,11 +148,11 @@ def compress_video(input_filename, preset, task_id, user_id):
         try:
             subprocess.run(cmd, capture_output=True, text=True, check=True)
             update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename)
-            return # Success!
+            return
         except subprocess.CalledProcessError as e:
             last_error = e.stderr
             print(f"FFmpeg encoder {encoder} failed: {e.stderr}")
-            continue # Try next encoder
+            continue
 
     print(f"All encoders failed for {input_filename}. Last error: {last_error}")
     update_task_progress(task_id, 'error', error_log=last_error)
@@ -148,7 +162,7 @@ def start_download_async(url, video_id, task_id):
     thread.start()
     return thread
 
-def start_compress_async(input_filename, preset, task_id, user_id):
-    thread = threading.Thread(target=compress_video, args=(input_filename, preset, task_id, user_id))
+def start_compress_async(input_filename, preset, task_id, user_id, codec='H.264'):
+    thread = threading.Thread(target=compress_video, args=(input_filename, preset, task_id, user_id, codec))
     thread.start()
     return thread
