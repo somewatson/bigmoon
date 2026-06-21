@@ -107,19 +107,19 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     
     presets = {
         'fast': {
-            'crf': '28', 
+            'crf': '36', 
             'h264_sw': 'veryfast', 'h264_hw': 'veryfast',
             'h265_sw': 'veryfast', 'h265_hw': 'veryfast',
             'av1_sw': '8', 'av1_hw': 'veryfast'
         },
         'balanced': {
-            'crf': '23', 
+            'crf': '32', 
             'h264_sw': 'medium', 'h264_hw': 'balanced',
             'h265_sw': 'medium', 'h265_hw': 'balanced',
             'av1_sw': '6', 'av1_hw': 'fast'
         },
         'high': {
-            'crf': '18', 
+            'crf': '22', 
             'h264_sw': 'slow', 'h264_hw': 'quality',
             'h265_sw': 'slow', 'h265_hw': 'quality',
             'av1_sw': '4', 'av1_hw': 'quality'
