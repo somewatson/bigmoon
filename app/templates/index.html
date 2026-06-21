@@ -258,25 +258,31 @@
             const list = document.getElementById('fileList');
             list.innerHTML = '';
             data.files.forEach(file => {
-                const item = document.createElement('div');
-                item.className = 'file-item';
-                item.innerHTML = `
-                    <span>${file}</span>
-                    <div class="compress-controls">
-                        <select id="preset-${file}">
-                            <option value="fast">Fast</option>
-                            <option value="balanced" selected>Balanced</option>
-                            <option value="high">High Quality</option>
-                        </select>
-                        <button onclick="compressFile('${file}')">Compress</button>
-                    </div>
-                `;
-                list.appendChild(item);
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    item.innerHTML = `
+                        <span>${file}</span>
+                        <div class="compress-controls">
+                            <select id="preset-${encodeURIComponent(file)}">
+                                <option value="fast">Fast</option>
+                                <option value="balanced" selected>Balanced</option>
+                                <option value="high">High Quality</option>
+                            </select>
+                            <button class="compress-btn" data-filename="${encodeURIComponent(file)}">Compress</button>
+                        </div>
+                    `;
+                    
+                    item.querySelector('.compress-btn').onclick = () => {
+                        compressFile(decodeURIComponent(file));
+                    };
+                    
+                    list.appendChild(item);
+
             });
         }
 
         async function compressFile(file) {
-            const preset = document.getElementById(`preset-${file}`).value;
+            const preset = document.getElementById(`preset-${encodeURIComponent(file)}`).value;
             const response = await fetch('/api/compress', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
