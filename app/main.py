@@ -127,6 +127,10 @@ def list_videos():
         vod_res.raise_for_status()
         videos = vod_res.json().get('data', [])
         
+        # Debugging: Log the first video's data to see actual duration value
+        if videos:
+            print(f"DEBUG: First video data: {videos[0]}")
+        
         return jsonify({'videos': videos})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
