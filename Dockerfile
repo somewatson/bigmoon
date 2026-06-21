@@ -64,9 +64,9 @@ RUN apt-get install -y \
     libvpl2 \
     vainfo \
     libnuma1 \
-    libx264-163 \
-    libx265-199 \
-    libsvtav1-0 \
+    libx264-dev \
+    libx265-dev \
+    libsvtav1-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy FFmpeg and libraries from builder stage
