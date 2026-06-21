@@ -156,11 +156,9 @@
                     const durationSecs = parseInt(video.duration);
                     let durationStr = "Unknown";
                     if (!isNaN(durationSecs)) {
-                        const h = Math.floor(durationSecs / 3600);
-                        const m = Math.floor((durationSecs % 3600) / 60);
-                        const s = durationSecs % 60;
-                        durationStr = `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
+                        durationStr = `Raw: ${durationSecs}`;
                     }
+
 
                     card.innerHTML = `
                         <button class="fav-btn ${isFavoriteSync(channel)}" onclick="toggleFavorite('${channel}')">❤️</button>
