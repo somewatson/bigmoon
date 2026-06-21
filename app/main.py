@@ -46,6 +46,17 @@ def load_user(user_id):
 def bootstrap_admin():
     with app.app_context():
         db.create_all()
+        
+        # Migration: Add error_log column to DownloadTask if it doesn't exist
+        try:
+            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN error_log TEXT"))
+            db.session.commit()
+            app.logger.info("Migrated database: added error_log column to download_task")
+        except Exception as e:
+            # If column already exists, SQLite will throw an error; we can safely ignore it
+            db.session.rollback()
+            app.logger.debug(f"Database migration note: {e}")
+
         if not User.query.filter_by(role='admin').first():
             admin_user = User(
                 username=os.getenv('ADMIN_USERNAME', 'admin'),
