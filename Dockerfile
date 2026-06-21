@@ -1,9 +1,54 @@
-FROM ubuntu:22.04
+# --- Stage 1: Build FFmpeg ---
+FROM ubuntu:22.04 AS builder
 
-# Avoid prompts during package installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install prerequisites for adding the Intel repository
+# Install build dependencies
+RUN apt-get update && apt-get install -y \
+    build-essential \
+    cmake \
+    git \
+    pkg-config \
+    wget \
+    yasm \
+    nasm \
+    libvpl-dev \
+    libva-dev \
+    libx264-dev \
+    libx265-dev \
+    libnuma-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install SVT-AV1
+RUN git clone https://github.com/SVT-AV1/SVT-AV1.git /tmp/SVT-AV1 && \
+    cd /tmp/SVT-AV1 && \
+    mkdir build && cd build && \
+    cmake .. && \
+    make -j$(nproc) && \
+    make install
+
+# Build FFmpeg with QSV and SVT-AV1 support
+RUN git clone https://git.ffmpeg.org/ffmpeg.git /tmp/ffmpeg && \
+    cd /tmp/ffmpeg && \
+    ./configure \
+        --enable-gpl \
+        --enable-nonfree \
+        --enable-libx264 \
+        --enable-libx265 \
+        --enable-libsvtav1 \
+        --enable-libvpl \
+        --enable-vaapi \
+        --extra-cflags="-I/usr/local/include" \
+        --extra-ldflags="-L/usr/local/lib" && \
+    make -j$(nproc) && \
+    make install
+
+# --- Stage 2: Final Image ---
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install prerequisites for Intel GPU repository
 RUN apt-get update && apt-get install -y \
     wget \
     gpg \
@@ -14,24 +59,25 @@ RUN apt-get update && apt-get install -y \
 # Add Intel GPU repositories
 RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null
 RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
-
-# Add Savoury1 PPA for modern FFmpeg (Version 5.x/6.x) on Ubuntu 22.04
-RUN apt-get update && apt-get install -y software-properties-common && \
-    add-apt-repository -y ppa:savoury1/ffmpeg4 && \
-    add-apt-repository -y ppa:savoury1/ffmpeg5 && \
-    add-apt-repository -y ppa:savoury1/ffmpeg6
-
 RUN apt-get update && apt-get dist-upgrade -y
 
-# Install system dependencies
+# Install runtime dependencies
 RUN apt-get install -y \
     python3 \
     python3-pip \
-    ffmpeg \
     intel-media-va-driver-non-free \
     libvpl2 \
     vainfo \
+    libnuma1 \
     && rm -rf /var/lib/apt/lists/*
+
+# Copy FFmpeg and libraries from builder stage
+COPY --from=builder /usr/local/bin/ffmpeg /usr/local/bin/
+COPY --from=builder /usr/local/bin/ffprobe /usr/local/bin/
+COPY --from=builder /usr/local/lib/libSVTAv1.so* /usr/local/lib/
+
+# Update linker cache
+RUN ldconfig
 
 # Force use of the Intel iHD driver
 ENV LIBVA_DRIVER_NAME=iHD
