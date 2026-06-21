@@ -10,15 +10,18 @@ load_dotenv()
 DOWNLOADS_DIR = os.getenv('DOWNLOADS_DIR', '/app/downloads')
 USE_GPU = os.getenv('USE_GPU', 'false').lower() == 'true'
 
-def update_task_progress(task_id, status, progress=0.0, filename=None):
+def update_task_progress(task_id, status=None, progress=None, filename=None):
     from main import app
     with app.app_context():
-        task = DownloadTask.query.get(task_id)
-        if task:
-            if status: task.status = status
-            if progress is not None: task.progress = progress
-            if filename: task.filename = filename
-            db.session.commit()
+        try:
+            task = DownloadTask.query.get(task_id)
+            if task:
+                if status is not None: task.status = status
+                if progress is not None: task.progress = progress
+                if filename is not None: task.filename = filename
+                db.session.commit()
+        except Exception as e:
+            print(f"Database error updating task {task_id}: {e}")
 
 def cleanup_temp_files():
     """Removes yt-dlp temporary files from the downloads directory."""
@@ -45,21 +48,26 @@ def download_vod(url, video_id, task_id):
     update_task_progress(task_id, 'downloading')
     
     try:
+    try:
         process = subprocess.Popen(
             cmd, 
             stdout=subprocess.PIPE, 
             stderr=subprocess.STDOUT, 
             text=True, 
-            bufsize=1
+            bufsize=1,
+            universal_newlines=True
         )
         
         progress_re = re.compile(r'\[download\]\s+(\d+\.?\d*)%')
         filename = None
 
-        while True:
-            line = process.stdout.readline()
+        # Read output line by line
+        for line in iter(process.stdout.readline, ''):
             if not line:
                 break
+            
+            # Debug print to see what yt-dlp is actually saying
+            print(f"yt-dlp output: {line.strip()}")
             
             match = progress_re.search(line)
             if match:
