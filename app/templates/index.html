@@ -72,10 +72,10 @@
     <div class="main-content">
         <!-- Search Tab -->
         <div id="tab-search" class="tab-content active">
-            <div class="search-section">
+            <form class="search-section" onsubmit="event.preventDefault(); searchVideos();">
                 <input type="text" id="channelInput" placeholder="Enter Twitch channel name...">
-                <button onclick="searchVideos()">Search</button>
-            </div>
+                <button type="submit">Search</button>
+            </form>
             <div id="videoGrid" class="video-grid"></div>
         </div>
 
