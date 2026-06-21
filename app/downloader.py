@@ -48,7 +48,6 @@ def download_vod(url, video_id, task_id):
     update_task_progress(task_id, 'downloading')
     
     try:
-    try:
         process = subprocess.Popen(
             cmd, 
             stdout=subprocess.PIPE, 
