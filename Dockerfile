@@ -30,8 +30,8 @@ RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master
     cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
 
 # Build FFmpeg with QSV and SVT-AV1 support
-RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.xz && \
-    tar -xvf ffmpeg-snapshot.tar.xz && \
+RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
+    tar -xjf ffmpeg-snapshot.tar.bz2 && \
     cd ffmpeg-snapshot-$(ls -d ffmpeg-snapshot-* | head -n 1) && \
     ./configure \
         --enable-gpl \
@@ -45,7 +45,7 @@ RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.xz && \
         --extra-ldflags="-L/usr/local/lib" && \
     make -j$(nproc) && \
     make install && \
-    cd .. && rm -rf ffmpeg-snapshot*
+    cd .. && rm -rf ffmpeg-snapshot* ffmpeg-snapshot.tar.bz2
 
 # --- Stage 2: Final Image ---
 FROM ubuntu:22.04
