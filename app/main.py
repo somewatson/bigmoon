@@ -222,6 +222,17 @@ def format_size(size_bytes):
     s = round(size_bytes / p, 2)
     return f"{s} {size_name[i]}"
 
+@app.route('/api/tasks/clear_failed', methods=['POST'])
+@login_required
+def clear_failed_tasks():
+    try:
+        count = DownloadTask.query.filter_by(user_id=current_user.id, status='error').delete()
+        db.session.commit()
+        return jsonify({'message': f'Cleared {count} failed tasks'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/tasks', methods=['GET'])
 @login_required
 def list_tasks():

@@ -24,5 +24,5 @@ RUN mkdir -p /data /app/downloads
 # Expose the Flask port
 EXPOSE 5000
 
-# Run the application
-CMD ["python", "main.py"]
+# Run the application with PYTHONUNBUFFERED=1 and --debug flag to ensure logs are printed immediately
+CMD ["env", "PYTHONUNBUFFERED=1", "python", "main.py", "--debug"]
