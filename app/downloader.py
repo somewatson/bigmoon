@@ -2,6 +2,7 @@ import os
 import subprocess
 import threading
 import re
+import traceback
 from dotenv import load_dotenv
 from models import db, DownloadTask
 
@@ -87,6 +88,7 @@ def download_vod(url, video_id, task_id):
             
     except Exception as e:
         print(f"Error downloading {video_id}: {e}")
+        print(traceback.format_exc())
         update_task_progress(task_id, 'error')
         cleanup_temp_files()
 
