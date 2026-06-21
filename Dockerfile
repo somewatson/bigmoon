@@ -22,10 +22,19 @@ RUN apt-get update && apt-get install -y \
 RUN git clone https://github.com/oneapi-src/oneVPL.git && \
     cd oneVPL && \
     mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_SAMPLES=OFF -DENABLE_TESTS=OFF && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && rm -rf oneVPL
+
+# Install Intel oneVPL implementation (Runtime)
+RUN git clone https://github.com/oneapi-src/oneVPL-impl-intel-gpu.git && \
+    cd oneVPL-impl-intel-gpu && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    cd ../.. && rm -rf oneVPL-impl-intel-gpu
 
 # Install SVT-AV1 from GitLab
 RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master.tar.gz && \
@@ -95,6 +104,7 @@ RUN ldconfig
 
 # Force use of the Intel iHD driver
 ENV LIBVA_DRIVER_NAME=iHD
+ENV ONEVPL_DEVICE=GPU
 
 # Setup python symlink
 RUN ln -s /usr/bin/python3 /usr/bin/python
