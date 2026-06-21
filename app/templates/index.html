@@ -154,10 +154,13 @@
                         .replace('%{height}', '720');
 
                     const durationSecs = parseInt(video.duration);
-                    const h = Math.floor(durationSecs / 3600);
-                    const m = Math.floor((durationSecs % 3600) / 60);
-                    const s = durationSecs % 60;
-                    const durationStr = `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
+                    let durationStr = "Unknown";
+                    if (!isNaN(durationSecs)) {
+                        const h = Math.floor(durationSecs / 3600);
+                        const m = Math.floor((durationSecs % 3600) / 60);
+                        const s = durationSecs % 60;
+                        durationStr = `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
+                    }
 
                     card.innerHTML = `
                         <button class="fav-btn ${isFavoriteSync(channel)}" onclick="toggleFavorite('${channel}')">❤️</button>
@@ -165,7 +168,10 @@
                         <div class="video-card-body">
                             <h3>${video.title}</h3>
                             <p>Created: ${new Date(video.created_at).toLocaleDateString()} | Duration: ${durationStr}</p>
-                            <button onclick="downloadVideo('${video.url}', '${video.id}')">Download</button>
+                            <div style="display: flex; gap: 10px; margin-bottom: 15px;">
+                                <button onclick="downloadVideo('${video.url}', '${video.id}')" style="flex: 1;">Download</button>
+                                <a href="${video.url}" target="_blank" style="text-align: center; display: flex; align-items: center; justify-content: center; background: #444; color: white; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'">View VOD</a>
+                            </div>
                         </div>
                     `;
                     grid.appendChild(card);
