@@ -76,7 +76,6 @@
                 <input type="text" id="channelInput" placeholder="Enter Twitch channel name...">
                 <button onclick="searchVideos()">Search</button>
             </div>
-            <div id="debugJson" style="display:none; background:#000; color:#0f0; padding:10px; overflow:auto; max-height:300px; font-size:10px; margin-bottom:20px; border:1px solid var(--primary); font-family: monospace; white-space: pre-wrap;"></div>
             <div id="videoGrid" class="video-grid"></div>
         </div>
 
@@ -145,10 +144,6 @@
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
 
-                const debugDiv = document.getElementById('debugJson');
-                debugDiv.style.display = 'block';
-                debugDiv.textContent = JSON.stringify(data, null, 2);
-
                 grid.innerHTML = '';
                 data.videos.forEach(video => {
                     const card = document.createElement('div');
@@ -158,14 +153,7 @@
                         .replace('%{width}', '1280')
                         .replace('%{height}', '720');
 
-                    const durationSecs = parseInt(video.duration);
-                    let durationStr = "Unknown";
-                    if (!isNaN(durationSecs)) {
-                        durationStr = `Raw: ${durationSecs}`;
-                    }
-
-                    const debugInfo = JSON.stringify(video).replace(/"/g, '&quot;');
-
+                    const durationStr = video.duration || "Unknown";
 
                     card.innerHTML = `
                         <button class="fav-btn ${isFavoriteSync(channel)}" onclick="toggleFavorite('${channel}')">❤️</button>
