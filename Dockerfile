@@ -17,16 +17,23 @@ RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] http
 RUN apt-get update && apt-get dist-upgrade -y
 
 # Install system dependencies
-# ffmpeg for video processing, intel-media-va-driver-non-free and libvpl for Intel QSV GPU support
+# intel-media-va-driver-non-free and libvpl for Intel QSV GPU support
 # vainfo for debugging GPU acceleration
 RUN apt-get install -y \
     python3 \
     python3-pip \
-    ffmpeg \
     intel-media-va-driver-non-free \
     libvpl2 \
     vainfo \
     && rm -rf /var/lib/apt/lists/*
+
+# Install modern static FFmpeg build (Version 7.x)
+# This ensures we have libsvtav1 and av1_qsv support, as Ubuntu 22.04's default ffmpeg is too old.
+RUN wget https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz \
+    && tar xvf ffmpeg-release-amd64-static.tar.xz \
+    && mv ffmpeg-*-amd64-static/ffmpeg /usr/local/bin/ \
+    && mv ffmpeg-*-amd64-static/ffprobe /usr/local/bin/ \
+    && rm -rf ffmpeg-release-amd64-static.tar.xz ffmpeg-*-amd64-static
 
 # Force use of the Intel iHD driver
 ENV LIBVA_DRIVER_NAME=iHD
