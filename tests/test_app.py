@@ -75,3 +75,22 @@ def test_task_creation(client, app):
         task = DownloadTask.query.get(resp.json['taskId'])
         assert task is not None
         assert task.status == 'pending'
+
+def test_clear_failed_tasks(client, app):
+    client.post('/login', data={'username': 'testadmin', 'password': 'testpass'})
+    
+    # Create a failed task
+    with app.app_context():
+        failed_task = DownloadTask(video_id="fail1", status="error", filename="fail.mp4")
+        db.session.add(failed_task)
+        db.session.commit()
+        task_id = failed_task.id
+    
+    # Clear failed tasks
+    resp = client.post('/api/tasks/clear_failed')
+    assert resp.status_code == 200
+    
+    # Verify it's gone
+    with app.app_context():
+        task = DownloadTask.query.get(task_id)
+        assert task is None
