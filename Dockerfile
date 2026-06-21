@@ -17,8 +17,9 @@ RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] http
 RUN apt-get update && apt-get dist-upgrade -y
 
 # Install system dependencies
-# intel-media-va-driver-non-free and libvpl for Intel QSV GPU support
-# vainfo for debugging GPU acceleration
+# We use the intel-media-va-driver-non-free and libvpl from Intel repos.
+# To get a modern FFmpeg with libsvtav1 on Ubuntu 22.04, we'll use the PPA or install specific Intel-provided tools if available.
+# For now, we ensure the driver stack is current.
 RUN apt-get install -y \
     python3 \
     python3-pip \
