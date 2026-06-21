@@ -208,7 +208,7 @@ def list_videos():
         vod_res.raise_for_status()
         videos = vod_res.json().get('data', [])
         
-        return jsonify({'videos': videos})
+        return jsonify({'channel': user_data[0], 'videos': videos})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 

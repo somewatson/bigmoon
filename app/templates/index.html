@@ -27,7 +27,19 @@
         button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--primary-hover); }
         
-        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+        .channel-card { 
+            background: var(--card-bg); 
+            padding: 20px; 
+            border-radius: 12px; 
+            border: 1px solid #444; 
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+            margin-bottom: 30px; 
+            position: relative; 
+        }
+        .channel-card img { width: 64px; height: 64px; border-radius: 50%; object-fit: cover; }
+        .channel-card h2 { margin: 0; font-size: 1.5rem; }
         .video-card { background: var(--card-bg); border-radius: 12px; overflow: hidden; border: 1px solid #444; transition: 0.2s; position: relative; }
         .video-card:hover { transform: translateY(-5px); border-color: var(--primary); }
         .video-card img { width: 100%; height: 160px; object-fit: cover; }
@@ -76,6 +88,7 @@
                 <input type="text" id="channelInput" placeholder="Enter Twitch channel name...">
                 <button type="submit">Search</button>
             </form>
+            <div id="channelInfo"></div>
             <div id="videoGrid" class="video-grid"></div>
         </div>
 
@@ -135,9 +148,11 @@
         async function searchVideos() {
             const channel = document.getElementById('channelInput').value;
             const grid = document.getElementById('videoGrid');
+            const channelInfo = document.getElementById('channelInfo');
             if (!channel) return;
 
-            grid.innerHTML = '<p>Searching Twitch...</p>';
+            grid.innerHTML = '';
+            channelInfo.innerHTML = '<p>Searching Twitch...</p>';
             try {
                 const response = await fetch('/api/videos', {
                     method: 'POST',
@@ -146,6 +161,17 @@
                 });
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
+
+                channelInfo.innerHTML = `
+                    <div class="channel-card">
+                        <img src="https://api.dicebear.com/7.x/initials/svg?seed=${channel}" alt="avatar">
+                        <div>
+                            <h2>${channel}</h2>
+                            <p style="color: var(--text-dim); margin: 0;">Twitch Channel</p>
+                        </div>
+                        <button class="fav-btn" onclick="toggleFavorite('${channel}')">❤️</button>
+                    </div>
+                `;
 
                 grid.innerHTML = '';
                 data.videos.forEach(video => {
@@ -159,7 +185,6 @@
                     const durationStr = video.duration || "Unknown";
 
                     card.innerHTML = `
-                        <button class="fav-btn ${isFavoriteSync(channel)}" onclick="toggleFavorite('${channel}')">❤️</button>
                         <img src="${thumbUrl}" alt="thumbnail">
                         <div class="video-card-body">
                             <h3>${video.title}</h3>
@@ -173,7 +198,7 @@
                     grid.appendChild(card);
                 });
             } catch (e) {
-                grid.innerHTML = `<p style="color: var(--error)">${e.message}</p>`;
+                channelInfo.innerHTML = `<p style="color: var(--error)">${e.message}</p>`;
             }
         }
 
