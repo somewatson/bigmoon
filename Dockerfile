@@ -3,48 +3,22 @@ FROM ubuntu:22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies
+# Install build dependencies and Intel GPU repos for libvpl
 RUN apt-get update && apt-get install -y \
-    build-essential \
-    cmake \
-    git \
-    pkg-config \
-    wget \
-    yasm \
-    nasm \
+    build-essential cmake git pkg-config wget yasm nasm gpg ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null
+RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+
+RUN apt-get update && apt-get install -y \
+    libvpl-dev \
     libva-dev \
     libx264-dev \
     libx265-dev \
+    libsvtav1-dev \
     libnuma-dev \
     && rm -rf /var/lib/apt/lists/*
-
-# Install oneVPL (libvpl) from source to ensure version >= 2.6
-RUN git clone https://github.com/oneapi-src/oneVPL.git && \
-    cd oneVPL && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release -DENABLE_SAMPLES=OFF -DENABLE_TESTS=OFF && \
-    make -j$(nproc) && \
-    make install && \
-    cd ../.. && rm -rf oneVPL
-
-# Install Intel oneVPL implementation (Runtime)
-RUN git clone https://github.com/oneapi-src/oneVPL-impl-intel-gpu.git && \
-    cd oneVPL-impl-intel-gpu && \
-    mkdir build && cd build && \
-    cmake .. -DCMAKE_BUILD_TYPE=Release && \
-    make -j$(nproc) && \
-    make install && \
-    cd ../.. && rm -rf oneVPL-impl-intel-gpu
-
-# Install SVT-AV1 from GitLab
-RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master.tar.gz && \
-    tar -xvf SVT-AV1-master.tar.gz && \
-    cd SVT-AV1-master && \
-    mkdir build && cd build && \
-    cmake .. && \
-    make -j$(nproc) && \
-    make install && \
-    cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
 
 # Build FFmpeg with QSV and SVT-AV1 support
 RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
@@ -90,8 +64,9 @@ RUN apt-get install -y \
     libvpl2 \
     vainfo \
     libnuma1 \
-    libx264-dev \
-    libx265-dev \
+    libx264-163 \
+    libx265-199 \
+    libsvtav1-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy FFmpeg and libraries from builder stage
