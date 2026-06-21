@@ -12,12 +12,20 @@ RUN apt-get update && apt-get install -y \
     wget \
     yasm \
     nasm \
-    libvpl-dev \
     libva-dev \
     libx264-dev \
     libx265-dev \
     libnuma-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Install oneVPL (libvpl) from source to ensure version >= 2.6
+RUN git clone https://github.com/oneapi-src/oneVPL.git && \
+    cd oneVPL && \
+    mkdir build && cd build && \
+    cmake .. -DCMAKE_BUILD_TYPE=Release && \
+    make -j$(nproc) && \
+    make install && \
+    cd ../.. && rm -rf oneVPL
 
 # Install SVT-AV1 from GitLab
 RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master.tar.gz && \
