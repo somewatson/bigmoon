@@ -139,9 +139,14 @@
                 data.videos.forEach(video => {
                     const card = document.createElement('div');
                     card.className = 'video-card';
+                    
+                    const thumbUrl = video.thumbnail_url
+                        .replace('%{width}', '1280')
+                        .replace('%{height}', '720');
+
                     card.innerHTML = `
                         <button class="fav-btn ${isFavoriteSync(channel)}" onclick="toggleFavorite('${channel}')">❤️</button>
-                        <img src="${video.thumbnail_url}" alt="thumbnail">
+                        <img src="${thumbUrl}" alt="thumbnail">
                         <div class="video-card-body">
                             <h3>${video.title}</h3>
                             <p>Created: ${new Date(video.created_at).toLocaleDateString()}</p>
