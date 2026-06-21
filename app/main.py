@@ -1,5 +1,7 @@
 import os
 import logging
+import sys
+import argparse
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
@@ -19,12 +21,18 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'big-moon-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:///data/users.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Configure logging to output debug logs by default
+# Handle command line arguments for logging
+parser = argparse.ArgumentParser()
+parser.add_argument('--debug', action='store_true', help='Enable debug logging')
+args, unknown = parser.parse_known_args()
+
+log_level = logging.DEBUG if args.debug else logging.INFO
+
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=log_level,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
 )
-app.logger.setLevel(logging.DEBUG)
+app.logger.setLevel(log_level)
 
 db.init_app(app)
 login_manager = LoginManager()
@@ -59,6 +67,29 @@ def login():
         flash('Invalid username or password')
     return render_template('login.html')
 
+@app.route('/api/system/ffmpeg')
+@login_required
+def ffmpeg_status():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    try:
+        import subprocess
+        result = subprocess.run(['ffmpeg', '-encoders'], capture_output=True, text=True, check=True)
+        encoders = result.stdout
+        
+        # Check for common HW accelerators
+        status = {
+            'qsv': 'h264_qsv' in encoders or 'hevc_qsv' in encoders,
+            'nvenc': 'h264_nvenc' in encoders or 'hevc_nvenc' in encoders,
+            'vaapi': 'h264_vaapi' in encoders or 'hevc_vaapi' in encoders,
+            'amf': 'h264_amf' in encoders or 'hevc_amf' in encoders,
+            'libx264': 'libx264' in encoders
+        }
+        return jsonify(status)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/logout')
 @login_required
 def logout():
@@ -76,6 +107,13 @@ def admin_dashboard():
     if current_user.role != 'admin':
         return "Access denied", 403
     return render_template('admin.html')
+
+@app.route('/system/status')
+@login_required
+def system_status():
+    if current_user.role != 'admin':
+        return "Access denied", 403
+    return render_template('system_status.html')
 
 @app.route('/admin/create_user', methods=['POST'])
 @login_required
@@ -194,7 +232,8 @@ def list_tasks():
             'progress': t.progress,
             'type': t.task_type,
             'video_id': t.video_id,
-            'size': size
+            'size': size,
+            'error': t.error_log
         })
     return jsonify({'tasks': task_list})
 

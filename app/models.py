@@ -30,3 +30,4 @@ class DownloadTask(db.Model):
     progress = db.Column(db.Float, default=0.0)
     task_type = db.Column(db.String(20), default='download') # download, compress
     created_at = db.Column(db.DateTime, server_default=db.func.now())
+    error_log = db.Column(db.Text)

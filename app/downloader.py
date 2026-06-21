@@ -11,7 +11,7 @@ load_dotenv()
 DOWNLOADS_DIR = os.getenv('DOWNLOADS_DIR', '/app/downloads')
 USE_GPU = os.getenv('USE_GPU', 'false').lower() == 'true'
 
-def update_task_progress(task_id, status=None, progress=None, filename=None):
+def update_task_progress(task_id, status=None, progress=None, filename=None, error_log=None):
     from main import app
     with app.app_context():
         try:
@@ -20,6 +20,7 @@ def update_task_progress(task_id, status=None, progress=None, filename=None):
                 if status is not None: task.status = status
                 if progress is not None: task.progress = progress
                 if filename is not None: task.filename = filename
+                if error_log is not None: task.error_log = error_log
                 db.session.commit()
         except Exception as e:
             print(f"Database error updating task {task_id}: {e}")
@@ -79,11 +80,17 @@ def download_vod(url, video_id, task_id):
                 update_task_progress(task_id, filename=filename)
 
         process.wait()
-        if process.returncode == 0:
+        
+        # Even if returncode != 0, check if the file actually exists
+        success = process.returncode == 0
+        if not success and filename and os.path.exists(filename):
+            success = True
+            
+        if success:
             update_task_progress(task_id, 'completed', progress=100.0)
             cleanup_temp_files()
         else:
-            update_task_progress(task_id, 'error')
+            update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
             cleanup_temp_files()
             
     except Exception as e:
@@ -106,31 +113,35 @@ def compress_video(input_filename, preset, task_id, user_id):
     
     p = presets.get(preset, presets['balanced'])
     
-    cmd = [
-        'ffmpeg',
-        '-y',
-        '-i', input_path,
-        '-c:v', 'h264_qsv',
-        '-b:v', p['bitrate'],
-        '-preset', p['preset'],
-        '-c:a', 'copy',
-        output_path
-    ]
-    
-    update_task_progress(task_id, 'processing')
-    
-    try:
-        # Use capture_output to get stdout and stderr for logging
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-        update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename)
-    except subprocess.CalledProcessError as e:
-        print(f"FFmpeg Error for {input_filename}:")
-        print(f"STDOUT: {e.stdout}")
-        print(f"STDERR: {e.stderr}")
-        update_task_progress(task_id, 'error')
-    except Exception as e:
-        print(f"Unexpected Error compressing {input_filename}: {e}")
-        update_task_progress(task_id, 'error')
+    # Attempt QSV first, fallback to libx264 if it fails
+    encoders = ['h264_qsv', 'libx264']
+    last_error = ""
+
+    for encoder in encoders:
+        cmd = [
+            'ffmpeg',
+            '-y',
+            '-i', input_path,
+            '-c:v', encoder,
+            '-b:v', p['bitrate'],
+            '-preset', p['preset'] if encoder == 'libx264' else 'medium',
+            '-c:a', 'copy',
+            output_path
+        ]
+        
+        update_task_progress(task_id, 'processing')
+        
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, check=True)
+            update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename)
+            return # Success!
+        except subprocess.CalledProcessError as e:
+            last_error = e.stderr
+            print(f"FFmpeg encoder {encoder} failed: {e.stderr}")
+            continue # Try next encoder
+
+    print(f"All encoders failed for {input_filename}. Last error: {last_error}")
+    update_task_progress(task_id, 'error', error_log=last_error)
 
 def start_download_async(url, video_id, task_id):
     thread = threading.Thread(target=download_vod, args=(url, video_id, task_id))
