@@ -81,6 +81,8 @@ RUN apt-get install -y \
     libvpl2 \
     vainfo \
     libnuma1 \
+    libx264-dev \
+    libx265-dev \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy FFmpeg and libraries from builder stage
