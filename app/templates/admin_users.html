@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big Moon - User Management</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
+        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .nav a { color: #9146ff; text-decoration: none; font-weight: bold; }
+        .card { background: #2a2a2a; padding: 20px; border-radius: 8px; border: 1px solid #444; max-width: 600px; margin-bottom: 20px; }
+        input, select { padding: 10px; margin: 10px 0; border-radius: 4px; border: 1px solid #444; background: #333; color: white; width: 100%; box-sizing: border-box; }
+        button { padding: 10px 20px; background: #9146ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #772ce8; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <h1>👥 User Management</h1>
+        <div>
+            <a href="{{ url_for('admin_dashboard') }}" style="margin-right: 20px;">Dashboard</a>
+            <a href="{{ url_for('index') }}">Back to Home</a>
+        </div>
+    </div>
+
+    <div class="card">
+        <h2>Create New User</h2>
+        <form id="createUserForm">
+            <label>Username</label>
+            <input type="text" name="username" required>
+            <label>Password</label>
+            <input type="password" name="password" required>
+            <label>Role</label>
+            <select name="role">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button type="submit">Create User</button>
+        </form>
+        <p id="statusMsg"></p>
+    </div>
+
+    <script>
+        document.getElementById('createUserForm').onsubmit = async (e) => {
+            e.preventDefault();
+            const formData = new FormData(e.target);
+            const statusMsg = document.getElementById('statusMsg');
+
+            try {
+                const response = await fetch('/admin/create_user', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                statusMsg.innerText = data.message || data.error;
+                statusMsg.style.color = data.message ? '#00c853' : '#ff4d4d';
+            } catch (e) {
+                statusMsg.innerText = 'An error occurred.';
+                statusMsg.style.color = '#ff4d4d';
+            }
+        };
+    </script>
+</body>
+</html>

@@ -117,7 +117,31 @@ def index():
 def admin_dashboard():
     if current_user.role != 'admin':
         return "Access denied", 403
-    return render_template('admin.html')
+    
+    # Basic system stats
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    disk_info = "Unknown"
+    try:
+        import shutil
+        total, used, free = shutil.disk_usage(downloads_dir)
+        disk_info = f"{format_size(used)} used / {format_size(total)} total"
+    except Exception:
+        pass
+
+    user_count = User.query.count()
+    task_count = DownloadTask.query.count()
+    
+    return render_template('admin_dashboard.html', 
+                           disk_info=disk_info, 
+                           user_count=user_count, 
+                           task_count=task_count)
+
+@app.route('/admin/users')
+@login_required
+def admin_users():
+    if current_user.role != 'admin':
+        return "Access denied", 403
+    return render_template('admin_users.html')
 
 @app.route('/system/status')
 @login_required
