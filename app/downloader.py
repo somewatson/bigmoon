@@ -129,9 +129,9 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     p = presets.get(preset, presets['balanced'])
     
     codec_map = {
-        'H.264': {'hw': 'h264_qsv', 'sw': 'libx264', 'prefix': 'h264'},
-        'H.265': {'hw': 'hevc_qsv', 'sw': 'libx265', 'prefix': 'h265'},
-        'AV1': {'hw': 'av1_qsv', 'sw': 'libsvtav1', 'prefix': 'av1'},
+        'H.264': {'hw': 'h264_vaapi', 'sw': 'libx264', 'prefix': 'h264'},
+        'H.265': {'hw': 'hevc_vaapi', 'sw': 'libx265', 'prefix': 'h265'},
+        'AV1': {'hw': 'av1_vaapi', 'sw': 'libsvtav1', 'prefix': 'av1'},
         'x264': {'hw': None, 'sw': 'libx264', 'prefix': 'h264'}
     }
     
@@ -146,7 +146,7 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     for encoder in encoders:
         # Determine which preset to use based on encoder and hardware/software
         prefix = mapping['prefix']
-        is_hw = 'qsv' in encoder
+        is_hw = 'vaapi' in encoder
         preset_key = f"{prefix}_{'hw' if is_hw else 'sw'}"
         current_preset = p.get(preset_key, 'medium')
         
