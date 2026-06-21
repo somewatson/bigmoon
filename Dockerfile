@@ -86,8 +86,7 @@ RUN apt-get install -y \
 # Copy FFmpeg and libraries from builder stage
 COPY --from=builder /usr/local/bin/ffmpeg /usr/local/bin/
 COPY --from=builder /usr/local/bin/ffprobe /usr/local/bin/
-COPY --from=builder /usr/local/lib/libSVTAv1* /usr/local/lib/
-COPY --from=builder /usr/local/lib/libvpl* /usr/local/lib/
+COPY --from=builder /usr/local/lib /usr/local/lib
 
 # Update linker cache
 RUN ldconfig
