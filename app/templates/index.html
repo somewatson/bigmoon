@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Big Moon - VODs</title>
+    <style>
+        body { font-family: sans-serif; background: #1a1a1a; color: white; margin: 0; padding: 20px; }
+        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; }
+        .nav a { color: #9146ff; text-decoration: none; font-weight: bold; }
+        .search-section { display: flex; gap: 10px; margin-bottom: 30px; }
+        input { padding: 10px; border-radius: 4px; border: 1px solid #444; background: #333; color: white; flex-grow: 1; }
+        button { padding: 10px 20px; background: #9146ff; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
+        button:hover { background: #772ce8; }
+        .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+        .video-card { background: #2a2a2a; padding: 15px; border-radius: 8px; border: 1px solid #444; }
+        .video-card h3 { margin: 0 0 10px 0; font-size: 1.1rem; }
+        .video-card p { font-size: 0.9rem; color: #aaa; margin-bottom: 15px; }
+        .btn-download { background: #00c853; }
+        .btn-download:hover { background: #00a844; }
+    </style>
+</head>
+<body>
+    <div class="nav">
+        <h1>🌙 Big Moon</h1>
+        <div>
+            {% if current_user.role == 'admin' %}
+                <a href="{{ url_for('admin_dashboard') }}">Admin</a> |
+            {% endif %}
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </div>
+    </div>
+
+    <div class="search-section">
+        <input type="text" id="channelInput" placeholder="Enter Twitch channel name...">
+        <button onclick="searchVideos()">Search</button>
+    </div>
+
+    <div id="videoGrid" class="video-grid"></div>
+
+    <script>
+        async function searchVideos() {
+            const channel = document.getElementById('channelInput').value;
+            const grid = document.getElementById('videoGrid');
+            if (!channel) return;
+
+            grid.innerHTML = 'Searching...';
+
+            try {
+                const response = await fetch('/api/videos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel })
+                });
+                const data = await response.json();
+
+                if (data.error) {
+                    grid.innerHTML = `<p style="color: red;">${data.error}</p>`;
+                    return;
+                }
+
+                grid.innerHTML = '';
+                data.videos.forEach(video => {
+                    const card = document.createElement('div');
+                    card.className = 'video-card';
+                    card.innerHTML = `
+                        <h3>${video.title}</h3>
+                        <p>Created: ${new Date(video.created_at).toLocaleDateString()}</p>
+                        <button class="btn-download" onclick="downloadVideo('${video.url}', '${video.id}')">Download</button>
+                    `;
+                    grid.appendChild(card);
+                });
+            } catch (e) {
+                grid.innerHTML = '<p style="color: red;">An error occurred while fetching videos.</p>';
+            }
+        }
+
+        async function downloadVideo(url, id) {
+            try {
+                const response = await fetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, id })
+                });
+                const data = await response.json();
+                alert(data.message || data.error);
+            } catch (e) {
+                alert('Error starting download');
+            }
+        }
+    </script>
+</body>
+</html>
