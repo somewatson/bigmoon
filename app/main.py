@@ -156,20 +156,39 @@ def manage_favorites():
     favs = Favorite.query.filter_by(user_id=current_user.id).all()
     return jsonify({'favorites': [f.channel_name for f in favs]})
 
+def format_size(size_bytes):
+    if size_bytes == 0: return "0B"
+    size_name = ("B", "KB", "MB", "GB", "TB")
+    import math
+    i = int(math.floor(math.log(size_bytes, 1024)))
+    p = math.pow(1024, i)
+    s = round(size_bytes / p, 2)
+    return f"{s} {size_name[i]}"
+
 @app.route('/api/tasks', methods=['GET'])
 @login_required
 def list_tasks():
     tasks = DownloadTask.query.filter_by(user_id=current_user.id).order_by(DownloadTask.created_at.desc()).all()
-    return jsonify({
-        'tasks': [{
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    
+    task_list = []
+    for t in tasks:
+        size = "Calculating..."
+        if t.filename:
+            path = os.path.join(downloads_dir, t.filename)
+            if os.path.exists(path):
+                size = format_size(os.path.getsize(path))
+        
+        task_list.append({
             'id': t.id,
             'filename': t.filename,
             'status': t.status,
             'progress': t.progress,
             'type': t.task_type,
-            'video_id': t.video_id
-        } for t in tasks]
-    })
+            'video_id': t.video_id,
+            'size': size
+        })
+    return jsonify({'tasks': task_list})
 
 
 @app.route('/api/download', methods=['POST'])
@@ -226,14 +245,24 @@ def list_files():
 @login_required
 def list_library():
     tasks = DownloadTask.query.filter_by(user_id=current_user.id, status='completed').all()
-    return jsonify({
-        'files': [{
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    
+    files = []
+    for t in tasks:
+        size = "Unknown"
+        if t.filename:
+            path = os.path.join(downloads_dir, t.filename)
+            if os.path.exists(path):
+                size = format_size(os.path.getsize(path))
+                
+        files.append({
             'filename': t.filename,
             'video_id': t.video_id,
             'type': t.task_type,
-            'created_at': t.created_at
-        } for t in tasks]
-    })
+            'created_at': t.created_at,
+            'size': size
+        })
+    return jsonify({'files': files})
 
 @app.route('/downloads/<path:filename>')
 @login_required

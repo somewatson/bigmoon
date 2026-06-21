@@ -153,12 +153,18 @@
                         .replace('%{width}', '1280')
                         .replace('%{height}', '720');
 
+                    const durationSecs = parseInt(video.duration);
+                    const h = Math.floor(durationSecs / 3600);
+                    const m = Math.floor((durationSecs % 3600) / 60);
+                    const s = durationSecs % 60;
+                    const durationStr = `${h > 0 ? h + 'h ' : ''}${m > 0 ? m + 'm ' : ''}${s}s`;
+
                     card.innerHTML = `
                         <button class="fav-btn ${isFavoriteSync(channel)}" onclick="toggleFavorite('${channel}')">❤️</button>
                         <img src="${thumbUrl}" alt="thumbnail">
                         <div class="video-card-body">
                             <h3>${video.title}</h3>
-                            <p>Created: ${new Date(video.created_at).toLocaleDateString()}</p>
+                            <p>Created: ${new Date(video.created_at).toLocaleDateString()} | Duration: ${durationStr}</p>
                             <button onclick="downloadVideo('${video.url}', '${video.id}')">Download</button>
                         </div>
                     `;
@@ -213,7 +219,7 @@
                 item.innerHTML = `
                     <div class="task-info">
                         <h4>${file.filename}</h4>
-                        <p style="font-size: 0.8rem; color: var(--text-dim);">Type: ${file.type} | Created: ${new Date(file.created_at).toLocaleString()}</p>
+                        <p style="font-size: 0.8rem; color: var(--text-dim);">Type: ${file.type} | Size: ${file.size} | Created: ${new Date(file.created_at).toLocaleString()}</p>
                     </div>
                     <a class="download-link" href="/downloads/${file.filename}">Download to PC</a>
                 `;
@@ -301,7 +307,7 @@
 
                 item.innerHTML = `
                     <div class="task-info">
-                        <h4>${task.filename || 'VOD ' + (task.video_id || '')}</h4>
+                        <h4>${task.filename || 'VOD ' + (task.video_id || '')} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
                         <div class="progress-container">
                             <div class="progress-bar" style="width: ${task.progress}%"></div>
                         </div>
