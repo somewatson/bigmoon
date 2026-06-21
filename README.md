@@ -49,3 +49,11 @@ The app will be available at `http://localhost:5000`.
 - No public sign-up page.
 - Initial admin is created automatically from `.env` on first run.
 - Subsequent users must be created by an administrator through the Admin Dashboard.
+
+## 📜 Credits
+
+This project was created by [Some Watson](https://somewatson.com) with the assistance of [opencode](https://opencode.ai), an AI software engineering agent.
+
+## 📄 License
+
+This project is licensed under the MIT License.
