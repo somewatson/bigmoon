@@ -3,13 +3,20 @@
 Big Moon is a self-hosted Twitch VOD downloader with a web interface, user authentication, and hardware acceleration for Intel GPUs.
 
 ## 🚀 Features
- 
-- **VOD Discovery**: Search for any Twitch channel and browse their available VODs.
-- **Hardware Accelerated**: Uses Intel QuickSync (QSV) via `/dev/dri` to speed up video processing.
+
+- **VOD Discovery**: Search for any Twitch channel and browse their available VODs with built-in player previews.
+- **Hardware Accelerated**: Uses Intel VA-API via `/dev/dri` to speed up video processing.
 - **AV1 Support**: Integrated with official Intel GPU drivers for AV1 hardware encoding (requires Intel Arc or 14th Gen+ CPUs).
+- **Advanced Library**: 
+  - **Bulk Management**: Batch compress or delete multiple VODs.
+  - **Size Analytics**: Real-time file size comparison showing space saved after compression.
+- **Modern UI/UX**:
+  - **Glassmorphism**: A polished, semi-transparent interface with dynamic accents.
+  - **Collapsible Navigation**: Adaptive sidebar for maximum workspace.
+  - **Live Feedback**: Visual progress bars with pulsing animations and toast notifications.
 - **User Management**: 
-  - **Admin**: Create users and manage the system.
-  - **User**: Search and request VOD downloads.
+  - **Admin Command Center**: High-level dashboard with disk utilization gauges and hardware health monitoring.
+  - **User**: Search, request VOD downloads, and manage a personal library.
 - **Dockerized**: Easy deployment with Docker Compose using an Ubuntu 22.04 base for maximum driver compatibility.
 - **Persistent Storage**: All VODs and user data are stored in mapped volumes.
 
@@ -33,7 +40,7 @@ Edit `.env`:
 - `TWITCH_CLIENT_SECRET`: Your Twitch App Client Secret.
 - `ADMIN_USERNAME`: The username for the initial admin account.
 - `ADMIN_PASSWORD`: The password for the initial admin account.
-- `USE_GPU`: Set to `true` to enable Intel QSV acceleration.
+- `USE_GPU`: Set to `true` to enable Intel acceleration.
 
 ### 3. Deployment
 Start the application:
