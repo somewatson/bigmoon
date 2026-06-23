@@ -50,6 +50,8 @@ docker compose up -d --build
 
 The app will be available at `http://localhost:5000`.
 
+For local development instructions (non-Docker), please refer to [DEVELOPMENT.md](./DEVELOPMENT.md).
+
 ### 🔍 Hardware Verification
 To check which codecs your GPU supports within the container:
 ```bash
