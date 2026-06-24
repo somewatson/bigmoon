@@ -134,9 +134,51 @@
         .bulk-actions.active { display: flex; }
         
         .compress-section { display: flex; flex-direction: column; gap: 12px; }
-        .file-item { background: var(--card-bg); padding: 12px 20px; border-radius: 6px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; gap: 15px; }
-        .file-item.selected { border-color: var(--primary); background: #252525; }
+        .file-item { 
+            background: var(--card-bg); 
+            padding: 12px; 
+            border-radius: 8px; 
+            border: 1px solid var(--border); 
+            display: flex; 
+            align-items: center; 
+            gap: 15px; 
+            transition: 0.2s;
+        }
+        .file-item:hover { background: #252525; border-color: #444; }
+        .file-item.selected { border-color: var(--primary); background: #2a2a2a; box-shadow: inset 0 0 10px rgba(145, 70, 255, 0.1); }
+        
+        .checkbox-wrapper { width: 30px; display: flex; justify-content: center; align-items: center; flex-shrink: 0; }
         .file-checkbox { width: 16px; height: 16px; cursor: pointer; }
+        
+        .thumb-preview { 
+            width: 80px; 
+            height: 45px; 
+            border-radius: 4px; 
+            object-fit: cover; 
+            background: #333; 
+            border: 1px solid var(--border); 
+            flex-shrink: 0;
+        }
+        
+        .file-details { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
+        .file-name { font-weight: 600; font-size: 0.95rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin: 0; }
+        .file-meta { font-size: 0.8rem; color: var(--text-dim); display: flex; gap: 10px; align-items: center; }
+        .meta-item { display: flex; align-items: center; gap: 4px; }
+        
+        .btn-download { 
+            background: var(--success); 
+            color: white; 
+            text-decoration: none; 
+            padding: 6px 12px; 
+            border-radius: 6px; 
+            font-size: 0.8rem; 
+            font-weight: bold; 
+            transition: 0.2s; 
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .btn-download:hover { filter: brightness(1.1); transform: translateY(-1px); }
+        
         .compress-controls { display: flex; gap: 10px; align-items: center; }
         select { padding: 6px; border-radius: 4px; background: #121212; color: white; border: 1px solid var(--border); font-size: 0.85rem; }
     </style>
@@ -624,19 +666,29 @@
                     const encoderBadge = file.encoder_type 
                         ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
                         : '';
+                    
+                    const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
+                    const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
 
                     item.innerHTML = `
-                        <div style="display: flex; align-items: center; gap: 10px;">
+                        <div class="checkbox-wrapper">
                             <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
-                            <div class="task-info">
-                                <h4 style="margin: 0; font-size: 0.9rem;">${file.filename} ${encoderBadge}</h4>
-                                <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0;">Type: ${file.type} | ${sizeInfo} | Created: ${new Date(file.created_at).toLocaleString()}</p>
+                        </div>
+                        <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.src='https://via.placeholder.com/80x45?text=Video'">
+                        <div class="file-details">
+                            <h4 class="file-name">${file.filename}</h4>
+                            <div class="file-meta">
+                                <span class="meta-item">${sizeInfo}</span>
+                                <span class="meta-item">• Type: ${file.type}</span>
+                                <span class="meta-item">• ${createdDate}</span>
+                                ${encoderBadge}
                             </div>
                         </div>
-                        <a class="download-link" href="/downloads/${file.filename}">Download to PC</a>
+                        <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
                     `;
                     list.appendChild(item);
                 });
+
             } catch (e) {
                 console.error('Library load failed:', e);
             }

@@ -74,6 +74,18 @@ def cleanup_temp_files():
         temp_files = [f for f in files if f.endswith('.temp.mp4') or f.endswith('.temp')]
         for f in temp_files:
             os.remove(os.path.join(downloads_dir, f))
+        
+        # Also clean up orphaned thumbnails
+        thumb_dir = os.path.join(downloads_dir, '.thumbnails')
+        if os.path.exists(thumb_dir):
+            thumb_files = os.listdir(thumb_dir)
+            actual_files = set(files)
+            for tf in thumb_files:
+                # If the thumbnail is for a file that no longer exists, delete it
+                original_filename = tf.replace('.jpg', '')
+                if original_filename not in actual_files:
+                    os.remove(os.path.join(thumb_dir, tf))
+                    
         if temp_files:
             logging.info(f"Cleaned up {len(temp_files)} temporary files from {downloads_dir}")
     except Exception as e:
@@ -273,6 +285,53 @@ def create_user():
     db.session.add(user)
     db.session.commit()
     return jsonify({'message': f'User {username} created successfully'})
+
+@app.route('/api/thumbnails/<path:filename>')
+@login_required
+def get_thumbnail(filename):
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    thumb_dir = os.path.join(downloads_dir, '.thumbnails')
+    
+    # Ensure thumbnail directory exists
+    if not os.path.exists(thumb_dir):
+        try:
+            os.makedirs(thumb_dir, exist_ok=True)
+        except Exception as e:
+            return jsonify({'error': f'Could not create thumbnail directory: {str(e)}'}), 500
+
+    thumb_filename = f"{filename}.jpg"
+    thumb_path = os.path.join(thumb_dir, thumb_filename)
+    video_path = os.path.join(downloads_dir, filename)
+
+    # Check if cached thumbnail exists
+    if os.path.exists(thumb_path):
+        return send_from_directory(thumb_dir, thumb_filename)
+
+    # Verify video file exists
+    if not os.path.exists(video_path):
+        return jsonify({'error': 'Video file not found'}), 404
+
+    # Generate thumbnail using FFmpeg
+    # -ss 00:00:05: seek to 5 seconds
+    # -i: input file
+    # -vframes 1: extract one frame
+    # -q:v 2: high quality
+    # -vf scale=160:-1: scale to 160px width, keep aspect ratio
+    try:
+        import subprocess
+        cmd = [
+            'ffmpeg', '-y', 
+            '-ss', '00:00:05', 
+            '-i', video_path, 
+            '-vframes', '1', 
+            '-q:v', '2', 
+            '-vf', 'scale=160:-1', 
+            thumb_path
+        ]
+        subprocess.run(cmd, check=True, capture_output=True)
+        return send_from_directory(thumb_dir, thumb_filename)
+    except Exception as e:
+        return jsonify({'error': f'Thumbnail generation failed: {str(e)}'}), 500
 
 @app.route('/api/system/metrics')
 @login_required
@@ -587,6 +646,12 @@ def bulk_delete_files():
                     # Also remove task record to clean up library
                     if task:
                         db.session.delete(task)
+                    
+                    # Cleanup thumbnail if it exists
+                    thumb_path = os.path.join(downloads_dir, '.thumbnails', f"{filename}.jpg")
+                    if os.path.exists(thumb_path):
+                        os.remove(thumb_path)
+                        
                     deleted_count += 1
             except Exception as e:
                 app.logger.error(f"Error deleting {filename}: {e}")
