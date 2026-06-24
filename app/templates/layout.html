@@ -99,9 +99,25 @@
         .task-status { font-size: 0.8rem; color: var(--text-dim); }
         .download-link { background: var(--success); color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
         
-        .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 15px; }
-        .fav-card { background: var(--card-bg); padding: 12px 15px; border-radius: 6px; border: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; cursor: pointer; transition: 0.2s; }
-        .fav-card:hover { background: #2a2a2a; border-color: var(--primary); }
+        .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; max-width: 1400px; margin: 0 auto; }
+        .fav-card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; gap: 20px; cursor: pointer; transition: 0.2s; position: relative; }
+        .fav-card:hover { background: #2a2a2a; border-color: var(--primary); transform: translateY(-2px); }
+        .fav-card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
+        .fav-card-info { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+        .fav-card-name { font-weight: bold; font-size: 1.1rem; color: white; }
+        .fav-card-description { font-size: 0.85rem; color: var(--text-dim); margin: 0; line-height: 1.4; }
+        .fav-card-link { font-size: 0.8rem; color: var(--primary); text-decoration: none; font-weight: 500; margin-top: 5px; }
+        .fav-card-remove { position: absolute; top: 10px; right: 10px; background: rgba(255,0,0,0.2); color: var(--error); border: none; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; transition: 0.2s; font-size: 0.8rem; }
+        .fav-card-remove:hover { background: var(--error); color: white; }
+
+        @media (max-width: 768px) {
+            .favorites-grid { grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 15px; }
+            .fav-card { padding: 15px; }
+            .fav-card img { width: 60px; height: 60px; }
+        }
+        @media (max-width: 480px) {
+            .favorites-grid { grid-template-columns: 1fr; }
+        }
         
         .library-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         .bulk-actions { display: none; gap: 12px; align-items: center; background: #1a1a1a; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--primary); }
@@ -132,12 +148,12 @@
             <button class="sidebar-toggle" onclick="toggleSidebar()">☰</button>
         </div>
         
-        <a class="nav-item" href="{{ url_for('index', tab='search') }}" id="nav-search" data-tab="search"><span>🔍</span> <span>Search & Download</span></a>
-        <a class="nav-item" href="{{ url_for('index', tab='favorites') }}" id="nav-favorites" data-tab="favorites"><span>❤️</span> <span>Favorites</span></a>
-        <a class="nav-item" href="{{ url_for('index', tab='automation') }}" id="nav-automation" data-tab="automation"><span>🤖</span> <span>Auto-Download</span></a>
-        <a class="nav-item" href="{{ url_for('index', tab='library') }}" id="nav-library" data-tab="library"><span>📚</span> <span>My Library</span></a>
-        <a class="nav-item" href="{{ url_for('index', tab='compress') }}" id="nav-compress" data-tab="compress"><span>⚡</span> <span>Compress (QSV)</span></a>
-        <a class="nav-item" href="{{ url_for('index', tab='tasks') }}" id="nav-tasks" data-tab="tasks"><span>⏳</span> <span>Active Tasks</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'search' %}active{% endif %}" href="{{ url_for('index', tab='search') }}" id="nav-search"><span>🔍</span> <span>Search & Download</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'favorites' %}active{% endif %}" href="{{ url_for('index', tab='favorites') }}" id="nav-favorites"><span>❤️</span> <span>Favorites</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'automation' %}active{% endif %}" href="{{ url_for('index', tab='automation') }}" id="nav-automation"><span>🤖</span> <span>Auto-Download</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'library' %}active{% endif %}" href="{{ url_for('index', tab='library') }}" id="nav-library"><span>📚</span> <span>My Library</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'compress' %}active{% endif %}" href="{{ url_for('index', tab='compress') }}" id="nav-compress"><span>⚡</span> <span>Compress (QSV</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'tasks' %}active{% endif %}" href="{{ url_for('index', tab='tasks') }}" id="nav-tasks"><span>⏳</span> <span>Active Tasks</span></a>
         
         {% if current_user.role == 'admin' %}
         <div class="nav-group">
@@ -174,9 +190,10 @@
             submenu.classList.toggle('active');
         }
 
-        function showTab(tabId) {
-            // This is handled in index.html but we need to update the nav-item active states here too if we use layout
-            // For now, index.html handles its own tab switching logic
+        function showTabGlobal(tabId) {
+            document.querySelectorAll('.nav-item').forEach(item => item.classList.remove('active'));
+            const activeNav = document.getElementById('nav-' + tabId);
+            if (activeNav) activeNav.classList.add('active');
         }
 
         function updateConnectionStatus(online) {
