@@ -31,9 +31,10 @@
     </div>
 </body>
 <script>
-    document.getElementById('loginForm').addEventListener('keypress', function(e) {
+    document.getElementById('loginForm').addEventListener('keydown', function(e) {
         if (e.key === 'Enter') {
-            this.submit();
+            e.preventDefault();
+            this.querySelector('button[type="submit"]').click();
         }
     });
 </script>
