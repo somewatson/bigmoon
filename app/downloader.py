@@ -85,7 +85,8 @@ def download_vod(url, video_id, task_id):
                 stderr=subprocess.STDOUT, 
                 text=True, 
                 bufsize=1,
-                universal_newlines=True
+                universal_newlines=True,
+                start_new_session=True
             )
             
             active_processes[task_id] = process
@@ -273,7 +274,8 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
                     stderr=subprocess.STDOUT, 
                     text=True,
                     bufsize=1,
-                    universal_newlines=True
+                    universal_newlines=True,
+                    start_new_session=True
                 )
                 active_processes[task_id] = process
                 
@@ -330,24 +332,32 @@ def start_compress_async(input_filename, preset, task_id, user_id, codec='H.264'
     return thread
 
 def cancel_task(task_id):
-    """Kills the process associated with the task if it exists. 
+    """Kills the process associated with the task and all its children. 
     Returns True if the task was successfully cancelled or was already dead.
     """
     process = active_processes.get(task_id)
     if process:
         try:
-            process.terminate()
-            # Give it a moment to terminate, then kill if still alive
+            # Use a process group to kill all child processes (like ffmpeg)
+            # This requires the process to have been started with start_new_session=True
+            try:
+                os.killpg(os.getpgid(process.pid), signal.SIGTERM)
+            except ProcessLookupError:
+                process.terminate()
+            except Exception:
+                process.terminate()
+
             try:
                 process.wait(timeout=2)
             except subprocess.TimeoutExpired:
-                process.kill()
+                try:
+                    os.killpg(os.getpgid(process.pid), signal.SIGKILL)
+                except Exception:
+                    process.kill()
             active_processes.pop(task_id, None)
             return True
         except Exception as e:
             print(f"Error canceling task {task_id}: {e}")
             return False
     
-    # If no active process is found, we still return True to allow 
-    # the database state to be updated (cleaning up hanging tasks).
     return True
