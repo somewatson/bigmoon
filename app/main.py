@@ -589,12 +589,12 @@ def manage_favorites():
                     user_res.raise_for_status()
                     users_data = user_res.json().get('data', [])
                     for u in users_data:
-                        user_map[u['login']] = u
+                        user_map[u['login'].lower()] = u
                 except Exception as e:
                     app.logger.error(f"Error fetching chunk {i//chunk_size + 1}: {e}")
             
             for f in favs:
-                u_info = user_map.get(f.channel_name, {})
+                u_info = user_map.get(f.channel_name.lower(), {})
                 enriched_favs.append({
                     'channel_name': f.channel_name,
                     'profile_image_url': u_info.get('profile_image_url', ''),
