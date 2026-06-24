@@ -86,9 +86,9 @@
         .toast.error { border-left-color: var(--error); }
         @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
         .task-info h4 { margin: 0 0 5px 0; font-size: 0.9rem; }
-        .progress-container { width: 100%; background: #333; height: 6px; border-radius: 3px; margin-top: 8px; overflow: hidden; display: flex; align-items: center; }
-        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease; }
-        .progress-text { font-size: 0.75rem; color: var(--text-dim); margin-left: 10px; min-width: 40px; text-align: right; }
+        .progress-container { width: 100%; background: #333; height: 6px; border-radius: 3px; margin-top: 8px; position: relative; }
+        .progress-bar { height: 100%; background: var(--primary); width: 0%; transition: width 0.3s ease; border-radius: 3px; }
+        .progress-text { position: absolute; right: 0; top: 50%; transform: translateY(-50%); font-size: 0.75rem; color: var(--text-dim); margin-left: 10px; min-width: 40px; text-align: right; pointer-events: none; }
         .task-status { font-size: 0.8rem; color: var(--text-dim); }
         .download-link { background: var(--success); color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
@@ -311,6 +311,20 @@
         function closePreview() {
             document.getElementById('previewModal').classList.remove('active');
             document.getElementById('previewContainer').innerHTML = '';
+        }
+
+        async function viewTaskLogs(taskId) {
+            try {
+                const response = await fetch(`/api/tasks/${taskId}/logs`);
+                const data = await response.json();
+                if (data.logs) {
+                    alert(`Task Logs:\n\n${data.logs}`);
+                } else {
+                    alert('No logs available yet.');
+                }
+            } catch (e) {
+                alert('Error fetching logs.');
+            }
         }
 
         async function loadLibrary() {
@@ -609,19 +623,21 @@
                     `;
                 }
 
-                item.innerHTML = `
-                    <div class="task-info">
-                        <div style="flex: 1;">
-                            <h4>${task.filename || 'VOD ' + (task.video_id || '')} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
-                            <div class="progress-container">
-                                <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%"></div>
-                                <span class="progress-text">${task.progress}%</span>
+                    item.innerHTML = `
+                        <div class="task-info">
+                            <div style="flex: 1;">
+                                <h4>${task.filename || 'VOD ' + (task.video_id || '')} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
+                                <div class="progress-container">
+                                    <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%"></div>
+                                    <span class="progress-text">${task.progress}%</span>
+                                </div>
+                                ${task.status === 'processing' ? `<button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;">View Logs</button>` : ''}
                             </div>
                         </div>
-                    </div>
-                    ${actionHtml}
-                    ${task.status === 'error' ? `<span style="color: var(--error); cursor: help;" title="${task.error || 'Unknown error'}">⚠️</span>` : ''}
-                `;
+                        ${actionHtml}
+                        ${task.status === 'error' ? `<span style="color: var(--error); cursor: help;" title="${task.error || 'Unknown error'}">⚠️</span>` : ''}
+                    `;
+
                 list.appendChild(item);
             });
         }
@@ -632,6 +648,7 @@
         window.downloadVideo = downloadVideo;
         window.previewVideo = previewVideo;
         window.closePreview = closePreview;
+        window.viewTaskLogs = viewTaskLogs;
         window.loadFavorites = loadFavorites;
         window.loadLibrary = loadLibrary;
         window.removeFavorite = removeFavorite;

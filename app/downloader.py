@@ -125,6 +125,18 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     output_filename = f"compressed_{codec}_{preset}_{input_filename}"
     output_path = os.path.join(DOWNLOADS_DIR, output_filename)
     
+    # Get total duration for progress calculation
+    total_duration = 0
+    try:
+        probe_cmd = [
+            'ffprobe', '-v', 'error', '-show_entries', 'format=duration',
+            '-of', 'default=noprint_wrappers=1:nokey=1', input_path
+        ]
+        duration_out = subprocess.check_output(probe_cmd, text=True).strip()
+        total_duration = float(duration_out)
+    except Exception as e:
+        print(f"Error probing duration for {input_filename}: {e}")
+
     presets = {
         'fast': {
             'crf': '36', 
@@ -161,10 +173,10 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
         encoders.append(mapping['hw'])
     encoders.append(mapping['sw'])
     
+    full_log = []
     last_error = ""
 
     for encoder in encoders:
-        # Determine which preset to use based on encoder and hardware/software
         prefix = mapping['prefix']
         is_hw = 'vaapi' in encoder
         preset_key = f"{prefix}_{'hw' if is_hw else 'sw'}"
@@ -179,15 +191,11 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
         if is_hw:
             cmd.extend(['-vf', 'format=nv12,hwupload'])
         
-        cmd.extend([
-            '-c:v', encoder,
-        ])
+        cmd.extend(['-c:v', encoder])
         
         if is_hw:
-            # VA-API doesn't use -crf, it uses -global_quality
             cmd.extend(['-global_quality', p['crf']])
         else:
-            # Software encoders use -crf
             cmd.extend(['-crf', p['crf']])
 
         cmd.extend([
@@ -196,35 +204,56 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
             output_path
         ])
         
-        update_task_progress(task_id, 'processing')
+        log_entry = f"Attempting encoding with {encoder}..."
+        full_log.append(log_entry)
+        update_task_progress(task_id, 'processing', error_log="\n".join(full_log))
         
         try:
             process = subprocess.Popen(
                 cmd, 
                 stdout=subprocess.PIPE, 
-                stderr=subprocess.PIPE, 
-                text=True
+                stderr=subprocess.STDOUT, 
+                text=True,
+                bufsize=1,
+                universal_newlines=True
             )
             active_processes[task_id] = process
             
-            stdout, stderr = process.communicate()
+            # Regex to find time=00:00:00.00
+            time_re = re.compile(r'time=(\d+):(\d+):(\d+.\d+)')
+            
+            for line in iter(process.stdout.readline, ''):
+                # Log lines to database for UI
+                full_log.append(line.strip())
+                # We don't update DB on every single line to avoid overloading SQLite
+                # but we update the overall log every few lines or when progress changes
+                
+                match = time_re.search(line)
+                if match and total_duration > 0:
+                    h, m, s = map(float, match.groups())
+                    current_seconds = h * 3600 + m * 60 + s
+                    progress = min(100.0, (current_seconds / total_duration) * 100)
+                    update_task_progress(task_id, progress=round(progress, 2), error_log="\n".join(full_log[-50:])) # Keep last 50 lines for brevity in status
+            
+            process.wait()
             
             if process.returncode == 0:
-                update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename)
+                update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename, error_log="Successfully encoded with " + encoder)
                 return
             else:
-                last_error = stderr
-                print(f"FFmpeg encoder {encoder} failed: {stderr}")
+                err_msg = f"Encoder {encoder} failed with return code {process.returncode}"
+                full_log.append(err_msg)
+                last_error = err_msg
                 continue
         except Exception as e:
-            last_error = str(e)
-            print(f"FFmpeg encoder {encoder} exception: {e}")
+            err_msg = f"Encoder {encoder} exception: {str(e)}"
+            full_log.append(err_msg)
+            last_error = err_msg
             continue
         finally:
             active_processes.pop(task_id, None)
 
-    print(f"All encoders failed for {input_filename}. Last error: {last_error}")
-    update_task_progress(task_id, 'error', error_log=last_error)
+    update_task_progress(task_id, 'error', error_log=f"All encoders failed. Last error: {last_error}\n\nFull log:\n" + "\n".join(full_log))
 
 def start_download_async(url, video_id, task_id):
     thread = threading.Thread(target=download_vod, args=(url, video_id, task_id))

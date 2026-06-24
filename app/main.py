@@ -311,6 +311,14 @@ def format_size(size_bytes):
     s = round(size_bytes / p, 2)
     return f"{s} {size_name[i]}"
 
+@app.route('/api/tasks/<int:task_id>/logs')
+@login_required
+def task_logs(task_id):
+    task = DownloadTask.query.get(task_id)
+    if not task or task.user_id != current_user.id:
+        return jsonify({'error': 'Task not found or unauthorized'}), 404
+    return jsonify({'logs': task.error_log or ''})
+
 @app.route('/api/tasks/clear_failed', methods=['POST'])
 @login_required
 def clear_failed_tasks():
