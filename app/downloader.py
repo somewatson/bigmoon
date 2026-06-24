@@ -151,10 +151,12 @@ def download_vod(url, video_id, task_id):
                 
                 # --- Task Chaining for Automation Pipeline ---
                 from models import MonitoredChannel
-                with DownloadTask.query.get(task_id).session.no_autoflush:
+                from main import app
+                with app.app_context():
+                    task = DownloadTask.query.get(task_id)
                     # Find the channel that triggered this download
                     channel = MonitoredChannel.query.filter(
-                        MonitoredChannel.user_id == DownloadTask.query.get(task_id).user_id,
+                        MonitoredChannel.user_id == task.user_id,
                         MonitoredChannel.enabled == True
                     ).first() # Simplified for now; real logic should correlate video_id
                     
@@ -165,17 +167,15 @@ def download_vod(url, video_id, task_id):
                             if not preset: continue
                             
                             # Create a new compression task
-                            from main import app
-                            with app.app_context():
-                                new_task = DownloadTask(
-                                    user_id=channel.user_id, 
-                                    filename=filename, 
-                                    status='pending', 
-                                    task_type='compress'
-                                )
-                                db.session.add(new_task)
-                                db.session.commit()
-                                start_compress_async(filename, preset, new_task.id, channel.user_id, channel.target_codec)
+                            new_task = DownloadTask(
+                                user_id=channel.user_id, 
+                                filename=filename, 
+                                status='pending', 
+                                task_type='compress'
+                            )
+                            db.session.add(new_task)
+                            db.session.commit()
+                            start_compress_async(filename, preset, new_task.id, channel.user_id, channel.target_codec)
                 # ---------------------------------------------
             else:
                 update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
