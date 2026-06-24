@@ -3,6 +3,7 @@ import subprocess
 import threading
 import re
 import traceback
+import signal
 from dotenv import load_dotenv
 from models import db, DownloadTask
 
@@ -10,6 +11,21 @@ load_dotenv()
 
 DOWNLOADS_DIR = os.getenv('DOWNLOADS_DIR', '/app/downloads')
 USE_GPU = os.getenv('USE_GPU', 'false').lower() == 'true'
+
+# Global registry to track active processes for cancellation
+# Key: task_id, Value: subprocess.Popen object
+active_processes = {}
+
+def shutdown_all_tasks():
+    """Kills all active subprocesses immediately on app shutdown."""
+    print(f"Shutting down {len(active_processes)} active tasks...")
+    for task_id, process in list(active_processes.items()):
+        try:
+            process.kill()
+            print(f"Killed task {task_id}")
+        except Exception as e:
+            print(f"Error killing task {task_id}: {e}")
+    active_processes.clear()
 
 def update_task_progress(task_id, status=None, progress=None, filename=None, error_log=None):
     from main import app
@@ -59,6 +75,8 @@ def download_vod(url, video_id, task_id):
             universal_newlines=True
         )
         
+        active_processes[task_id] = process
+        
         progress_re = re.compile(r'\[download\]\s+(\d+\.?\d*)%')
         filename = None
 
@@ -98,6 +116,8 @@ def download_vod(url, video_id, task_id):
         print(traceback.format_exc())
         update_task_progress(task_id, 'error')
         cleanup_temp_files()
+    finally:
+        active_processes.pop(task_id, None)
 
 def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
@@ -179,13 +199,29 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
         update_task_progress(task_id, 'processing')
         
         try:
-            subprocess.run(cmd, capture_output=True, text=True, check=True)
-            update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename)
-            return
-        except subprocess.CalledProcessError as e:
-            last_error = e.stderr
-            print(f"FFmpeg encoder {encoder} failed: {e.stderr}")
+            process = subprocess.Popen(
+                cmd, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.PIPE, 
+                text=True
+            )
+            active_processes[task_id] = process
+            
+            stdout, stderr = process.communicate()
+            
+            if process.returncode == 0:
+                update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename)
+                return
+            else:
+                last_error = stderr
+                print(f"FFmpeg encoder {encoder} failed: {stderr}")
+                continue
+        except Exception as e:
+            last_error = str(e)
+            print(f"FFmpeg encoder {encoder} exception: {e}")
             continue
+        finally:
+            active_processes.pop(task_id, None)
 
     print(f"All encoders failed for {input_filename}. Last error: {last_error}")
     update_task_progress(task_id, 'error', error_log=last_error)
@@ -199,3 +235,20 @@ def start_compress_async(input_filename, preset, task_id, user_id, codec='H.264'
     thread = threading.Thread(target=compress_video, args=(input_filename, preset, task_id, user_id, codec))
     thread.start()
     return thread
+
+def cancel_task(task_id):
+    """Kills the process associated with the task if it exists."""
+    process = active_processes.get(task_id)
+    if process:
+        try:
+            process.terminate()
+            # Give it a moment to terminate, then kill if still alive
+            try:
+                process.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                process.kill()
+            return True
+        except Exception as e:
+            print(f"Error canceling task {task_id}: {e}")
+            return False
+    return False

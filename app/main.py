@@ -2,6 +2,7 @@ import os
 import logging
 import sys
 import argparse
+import signal
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
@@ -10,7 +11,7 @@ from dotenv import load_dotenv
 import requests
 
 from models import db, User, Favorite, DownloadTask
-from downloader import start_download_async, start_compress_async
+from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks
 
 
 
@@ -65,6 +66,15 @@ def bootstrap_admin():
             admin_user.set_password(os.getenv('ADMIN_PASSWORD', 'admin_password'))
             db.session.add(admin_user)
             db.session.commit()
+
+def handle_shutdown(signum, frame):
+    logging.info(f"Received signal {signum}, shutting down gracefully...")
+    shutdown_all_tasks()
+    sys.exit(0)
+
+# Register signal handlers for SIGTERM (Docker stop) and SIGINT (Ctrl+C)
+signal.signal(signal.SIGTERM, handle_shutdown)
+signal.signal(signal.SIGINT, handle_shutdown)
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
@@ -143,6 +153,38 @@ def admin_users():
         return "Access denied", 403
     return render_template('admin_users.html')
 
+@app.route('/api/admin/users', methods=['GET'])
+@login_required
+def admin_users_list():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    users = User.query.all()
+    return jsonify({'users': [{'username': u.username, 'role': u.role} for u in users]})
+
+@app.route('/admin/delete_user', methods=['POST'])
+@login_required
+def delete_user():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    data = request.json
+    username = data.get('username')
+    if not username:
+        return jsonify({'error': 'Username required'}), 400
+    
+    user = User.query.filter_by(username=username).first()
+    if not user:
+        return jsonify({'error': 'User not found'}), 404
+    
+    # Prevent deleting the last admin or yourself
+    if user.role == 'admin' and User.query.filter_by(role='admin').count() <= 1:
+        return jsonify({'error': 'Cannot delete the last administrator'}), 400
+    if user.id == current_user.id:
+        return jsonify({'error': 'Cannot delete yourself'}), 400
+        
+    db.session.delete(user)
+    db.session.commit()
+    return jsonify({'message': f'User {username} deleted successfully'})
+
 @app.route('/system/status')
 @login_required
 def system_status():
@@ -171,6 +213,22 @@ def create_user():
     db.session.add(user)
     db.session.commit()
     return jsonify({'message': f'User {username} created successfully'})
+
+@app.route('/api/tasks/cancel/<int:task_id>', methods=['POST'])
+@login_required
+def cancel_task_route(task_id):
+    task = DownloadTask.query.get(task_id)
+    if not task or task.user_id != current_user.id:
+        return jsonify({'error': 'Task not found or unauthorized'}), 404
+    
+    if task.status in ['completed', 'error']:
+        return jsonify({'error': 'Cannot cancel a finished task'}), 400
+    
+    if cancel_task(task_id):
+        update_task_progress(task_id, 'error', error_log="Task cancelled by user")
+        return jsonify({'message': 'Task cancelled successfully'})
+    else:
+        return jsonify({'error': 'Task could not be cancelled (possibly already finished)'}), 500
 
 def get_twitch_token():
     client_id = os.getenv('TWITCH_CLIENT_ID')
@@ -344,19 +402,100 @@ def list_library():
     files = []
     for t in tasks:
         size = "Unknown"
+        original_size = "Unknown"
+        
+        # Calculate current file size
         if t.filename:
             path = os.path.join(downloads_dir, t.filename)
             if os.path.exists(path):
-                size = format_size(os.path.getsize(path))
-                
+                size = os.path.getsize(path)
+        
+        # If this is a compressed file, try to find the original
+        if t.task_type == 'compress':
+            # The filename for compressed files starts with 'compressed_'
+            # We need to extract the original filename to find its size
+            # Pattern: compressed_{codec}_{preset}_{original_filename}
+            parts = t.filename.split('_', 3)
+            if len(parts) >= 4:
+                original_filename = parts[3]
+                orig_path = os.path.join(downloads_dir, original_filename)
+                if os.path.exists(orig_path):
+                    original_size = os.path.getsize(orig_path)
+        
         files.append({
             'filename': t.filename,
             'video_id': t.video_id,
             'type': t.task_type,
             'created_at': t.created_at,
-            'size': size
+            'size': format_size(size) if isinstance(size, (int, float)) else size,
+            'original_size': format_size(original_size) if isinstance(original_size, (int, float)) else None,
+            'savings': calculate_savings(original_size, size)
         })
     return jsonify({'files': files})
+
+def calculate_savings(original, current):
+    if not isinstance(original, (int, float)) or not isinstance(current, (int, float)):
+        return None
+    if original <= 0: return None
+    saved = original - current
+    percent = (saved / original) * 100
+    return f"{format_size(saved)} ({round(percent, 1)}%)"
+
+@app.route('/api/library/bulk-delete', methods=['POST'])
+@login_required
+def bulk_delete_files():
+    data = request.json
+    filenames = data.get('filenames', [])
+    if not filenames:
+        return jsonify({'error': 'No files selected'}), 400
+    
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    deleted_count = 0
+    
+    for filename in filenames:
+        # Verify ownership
+        task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
+        if task or current_user.role == 'admin':
+            path = os.path.join(downloads_dir, filename)
+            try:
+                if os.path.exists(path):
+                    os.remove(path)
+                    # Also remove task record to clean up library
+                    if task:
+                        db.session.delete(task)
+                    deleted_count += 1
+            except Exception as e:
+                app.logger.error(f"Error deleting {filename}: {e}")
+    
+    db.session.commit()
+    return jsonify({'message': f'Successfully deleted {deleted_count} files'})
+
+@app.route('/api/library/bulk-compress', methods=['POST'])
+@login_required
+def bulk_compress_files():
+    data = request.json
+    filenames = data.get('filenames', [])
+    codec = data.get('codec', 'AV1')
+    preset = data.get('preset', 'balanced')
+    
+    if not filenames:
+        return jsonify({'error': 'No files selected'}), 400
+    
+    task_ids = []
+    for filename in filenames:
+        # Verify ownership
+        task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
+        if task or current_user.role == 'admin':
+            # Create a new compression task
+            new_task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress')
+            db.session.add(new_task)
+            db.session.flush() # Get ID before commit
+            
+            start_compress_async(filename, preset, new_task.id, current_user.id, codec)
+            task_ids.append(new_task.id)
+    
+    db.session.commit()
+    return jsonify({'message': f'Started compression for {len(task_ids)} files', 'taskIds': task_ids})
 
 @app.route('/downloads/<path:filename>')
 @login_required
