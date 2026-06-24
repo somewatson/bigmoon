@@ -46,14 +46,28 @@ def update_task_progress(task_id, status=None, progress=None, filename=None, err
         except Exception as e:
             print(f"Database error updating task {task_id}: {e}")
 
-def cleanup_temp_files():
-    """Removes yt-dlp temporary files from the downloads directory."""
+def cleanup_task_files(task_id):
+    """Removes temporary files specifically associated with a given task."""
     try:
-        for file in os.listdir(DOWNLOADS_DIR):
-            if file.endswith(('.part', '.temp', '.ytdl')):
-                os.remove(os.path.join(DOWNLOADS_DIR, file))
+        from main import app
+        from models import DownloadTask
+        with app.app_context():
+            task = DownloadTask.query.get(task_id)
+            if not task or not task.filename:
+                return
+
+            # Get the base filename without extensions to match .part, .temp, etc.
+            # yt-dlp often uses filename.part or filename.ytdl
+            base_name = os.path.basename(task.filename)
+            
+            for file in os.listdir(DOWNLOADS_DIR):
+                # Match if the file starts with the base name and has a temp extension
+                # or if it's a known yt-dlp temp pattern containing the task filename
+                if (file.startswith(base_name) or base_name in file) and \
+                   file.endswith(('.part', '.temp', '.ytdl')):
+                    os.remove(os.path.join(DOWNLOADS_DIR, file))
     except Exception as e:
-        print(f"Error during cleanup: {e}")
+        print(f"Error cleaning up files for task {task_id}: {e}")
 
 def download_vod(url, video_id, task_id):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
@@ -119,11 +133,11 @@ def download_vod(url, video_id, task_id):
             if not success and filename and os.path.exists(filename):
                 success = True
                 
-            if success:
-                update_task_progress(task_id, 'completed', progress=100.0)
-                cleanup_temp_files()
-                
-                # --- Task Chaining for Automation Pipeline ---
+    if success:
+        update_task_progress(task_id, 'completed', progress=100.0)
+        cleanup_task_files(task_id)
+        
+        # --- Task Chaining for Automation Pipeline ---
                 from models import MonitoredChannel
                 with DownloadTask.query.get(task_id).session.no_autoflush:
                     # Find the channel that triggered this download
@@ -151,15 +165,15 @@ def download_vod(url, video_id, task_id):
                                 db.session.commit()
                                 start_compress_async(filename, preset, new_task.id, channel.user_id, channel.target_codec)
                 # ---------------------------------------------
-            else:
-                update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
-                cleanup_temp_files()
-                
+    else:
+        update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
+        cleanup_task_files(task_id)
+        
     except Exception as e:
         print(f"Error downloading {video_id}: {e}")
         print(traceback.format_exc())
         update_task_progress(task_id, 'error')
-        cleanup_temp_files()
+        cleanup_task_files(task_id)
     finally:
         active_processes.pop(task_id, None)
 
@@ -380,5 +394,8 @@ def cancel_task(task_id):
                         continue
     except Exception as e:
         print(f"Deep cleanup failed for task {task_id}: {e}")
+    
+    # 3. File Cleanup: Remove temporary files associated with this task
+    cleanup_task_files(task_id)
     
     return True
