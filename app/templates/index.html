@@ -516,15 +516,19 @@
             
             <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; display: flex; align-items: center; gap: 10px;">
                 Original Downloads
-                <input type="checkbox" id="selectAllOriginals" onchange="toggleAllFiles(this, 'libraryListOriginals')" style="width: auto; height: auto; margin: 0;">
-                <label for="selectAllOriginals" style="font-size: 0.8rem; color: var(--text-dim); cursor: pointer;">Select All</label>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <input type="checkbox" id="selectAllOriginals" onchange="toggleAllFiles(this, 'libraryListOriginals')" style="width: auto; height: auto; margin: 0;">
+                    <label for="selectAllOriginals" style="font-size: 0.8rem; color: var(--text-dim); cursor: pointer;">Select All</label>
+                </div>
             </h3>
             <div id="libraryListOriginals" class="task-list" style="margin-bottom: 40px;"></div>
             
             <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--success); padding-left: 10px; display: flex; align-items: center; gap: 10px;">
                 Compressed Versions
-                <input type="checkbox" id="selectAllCompressed" onchange="toggleAllFiles(this, 'libraryListCompressed')" style="width: auto; height: auto; margin: 0;">
-                <label for="selectAllCompressed" style="font-size: 0.8rem; color: var(--text-dim); cursor: pointer;">Select All</label>
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <input type="checkbox" id="selectAllCompressed" onchange="toggleAllFiles(this, 'libraryListCompressed')" style="width: auto; height: auto; margin: 0;">
+                    <label for="selectAllCompressed" style="font-size: 0.8rem; color: var(--text-dim); cursor: pointer;">Select All</label>
+                </div>
             </h3>
             <div id="libraryListCompressed" class="task-list"></div>
         </div>
@@ -606,6 +610,7 @@
             if(tabId === 'favorites') loadFavorites();
             if(tabId === 'automation') {
                 loadMonitored();
+                populateFavAutomationGrid();
                 populateFavDropdown();
             }
             if(tabId === 'library') loadLibrary();
@@ -640,6 +645,38 @@
                 });
             } catch (e) {
                 dropdown.innerHTML = '<div class="fav-dropdown-item">Error loading favorites</div>';
+            }
+        }
+
+        async function populateFavAutomationGrid() {
+            const grid = document.getElementById('favAutomationGrid');
+            try {
+                const response = await fetch('/api/favorites');
+                const data = await response.json();
+                grid.innerHTML = '';
+                
+                if (data.favorites.length === 0) {
+                    grid.innerHTML = '<p style="color: var(--text-dim); font-size: 0.85rem;">No favorites available to add.</p>';
+                    return;
+                }
+                
+                data.favorites.forEach(fav => {
+                    const channel = fav.channel_name;
+                    const card = document.createElement('div');
+                    card.className = 'fav-mini-card';
+                    
+                    const thumbUrl = fav.profile_image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
+                    
+                    card.innerHTML = `
+                        <img src="${thumbUrl}" alt="avatar" onerror="this.src='https://api.dicebear.com/7.x/initials/svg?seed=${channel}'">
+                        <span>${channel}</span>
+                    `;
+                    card.onclick = (e) => addFavToAutomation(channel, e);
+                    grid.appendChild(card);
+                });
+            } catch (e) {
+                console.error('Failed to populate fav automation grid:', e);
+                grid.innerHTML = '<p style="color: var(--error); font-size: 0.85rem;">Error loading favorites.</p>';
             }
         }
 
