@@ -31,7 +31,7 @@ def shutdown_all_tasks():
             print(f"Error killing task {task_id}: {e}")
     active_processes.clear()
 
-def update_task_progress(task_id, status=None, progress=None, filename=None, error_log=None):
+def update_task_progress(task_id, status=None, progress=None, filename=None, error_log=None, encoder_type=None):
     from main import app
     with app.app_context():
         try:
@@ -41,6 +41,7 @@ def update_task_progress(task_id, status=None, progress=None, filename=None, err
                 if progress is not None: task.progress = progress
                 if filename is not None: task.filename = filename
                 if error_log is not None: task.error_log = error_log
+                if encoder_type is not None: task.encoder_type = encoder_type
                 db.session.commit()
         except Exception as e:
             print(f"Database error updating task {task_id}: {e}")
@@ -227,6 +228,7 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
         print(f"[Task {task_id}] Executing: {cmd_str}")
         
         log_entry = f"Attempting encoding with {encoder}..."
+        encoder_type = 'HW' if is_hw else 'SW'
         
         try:
             # Append to the same task log file across different encoder attempts
@@ -245,6 +247,9 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
                 )
                 active_processes[task_id] = process
                 
+                # Record the current encoder type in DB
+                update_task_progress(task_id, encoder_type=encoder_type)
+                
                 # Regex to find time=00:00:00.00
                 time_re = re.compile(r'time=(\d+):(\d+):(\d+.\d+)')
                 
@@ -258,7 +263,6 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
                         h, m, s = map(float, match.groups())
                         current_seconds = h * 3600 + m * 60 + s
                         progress = min(100.0, (current_seconds / total_duration) * 100)
-                        # We no longer store the full log in the DB
                         update_task_progress(task_id, progress=round(progress, 2))
                 
                 process.wait()

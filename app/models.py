@@ -24,10 +24,12 @@ class Favorite(db.Model):
 class DownloadTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    filename = db.Column(db.String(255))
     video_id = db.Column(db.String(100))
-    status = db.Column(db.String(20), default='pending') # pending, downloading, completed, error
+    filename = db.Column(db.String(255))
+    status = db.Column(db.String(20), default='pending')
     progress = db.Column(db.Float, default=0.0)
-    task_type = db.Column(db.String(20), default='download') # download, compress
-    created_at = db.Column(db.DateTime, server_default=db.func.now())
+    task_type = db.Column(db.String(20))
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     error_log = db.Column(db.Text)
+    encoder_type = db.Column(db.String(10))
+

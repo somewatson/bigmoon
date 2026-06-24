@@ -86,6 +86,12 @@
         .log-command { color: #fff; font-weight: bold; background: #222; display: block; padding: 2px 5px; border-radius: 2px; margin-bottom: 5px; border-left: 3px solid var(--primary); }
         .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
         
+        .badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; vertical-align: middle; margin-left: 5px; }
+        .badge-hw { background: var(--success); color: white; }
+        .badge-sw { background: #555; color: white; }
+        .badge-live { background: var(--error); color: white; animation: pulse 1.5s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+        
         .fav-btn { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,0.6); border: none; color: white; cursor: pointer; border-radius: 50%; width: 35px; height: 35px; display: flex; align-items: center; justify-content: center; font-size: 1.2rem; transition: 0.2s; }
         .fav-btn.active { color: #ff4d4d; }
         .video-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; margin-top: 20px; }
@@ -379,9 +385,10 @@
 
         function previewVideo(videoId) {
             const container = document.getElementById('previewContainer');
+            const hostname = window.location.hostname;
             container.innerHTML = `
                 <iframe 
-                    src="https://player.twitch.tv/?video=${videoId}&parent=${window.location.hostname}" 
+                    src="https://player.twitch.tv/?video=${videoId}&parent=${hostname}" 
                     allowfullscreen="true">
                 </iframe>
             `;
@@ -400,10 +407,39 @@
             container.innerHTML = 'Loading logs...';
             
             window.activeLogTaskId = taskId;
-            window.logPollingInterval = setInterval(() => fetchLogs(taskId), 2000);
+            
+            // Determine if we should poll based on task status
+            // We need to check the current status first
+            try {
+                const response = await fetch('/api/tasks');
+                const data = await response.json();
+                const task = data.tasks.find(t => t.id === taskId);
+                
+                if (task && (task.status === 'downloading' || task.status === 'processing')) {
+                    window.logPollingInterval = setInterval(() => fetchLogs(taskId), 2000);
+                    updateLiveBadge(true);
+                } else {
+                    updateLiveBadge(false);
+                }
+            } catch (e) {
+                console.error('Error checking task status:', e);
+            }
             
             // Initial fetch
             await fetchLogs(taskId);
+        }
+
+        function updateLiveBadge(isLive) {
+            const header = document.querySelector('.log-header');
+            const existing = header.querySelector('.badge-live');
+            if (existing) existing.remove();
+            
+            if (isLive) {
+                const badge = document.createElement('span');
+                badge.className = 'badge badge-live';
+                badge.textContent = 'LIVE';
+                header.prepend(badge);
+            }
         }
 
         async function fetchLogs(taskId) {
@@ -421,11 +457,24 @@
                     }).join('\n');
                     
                     const container = document.getElementById('logContainer');
-                    // Only update and scroll if content changed
                     if (container.innerHTML !== formattedLogs) {
+                        const isAtBottom = (container.scrollHeight - container.scrollTop) <= (container.clientHeight + 50);
                         container.innerHTML = formattedLogs;
-                        // If we are already near bottom, keep scrolling
-                        scrollToBottom();
+                        if (isAtBottom) {
+                            scrollToBottom();
+                        }
+                    }
+                }
+                
+                // Check if task finished to stop polling
+                const taskRes = await fetch('/api/tasks');
+                const taskData = await taskRes.json();
+                const task = taskData.tasks.find(t => t.id === taskId);
+                if (task && task.status !== 'downloading' && task.status !== 'processing') {
+                    if (window.logPollingInterval) {
+                        clearInterval(window.logPollingInterval);
+                        window.logPollingInterval = null;
+                        updateLiveBadge(false);
                     }
                 }
             } catch (e) {
@@ -474,11 +523,15 @@
                         sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
                     }
                     
+                    const encoderBadge = file.encoder_type 
+                        ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
+                        : '';
+
                     item.innerHTML = `
                         <div style="display: flex; align-items: center; gap: 10px;">
                             <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
                             <div class="task-info">
-                                <h4 style="margin: 0; font-size: 0.9rem;">${file.filename}</h4>
+                                <h4 style="margin: 0; font-size: 0.9rem;">${file.filename} ${encoderBadge}</h4>
                                 <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0;">Type: ${file.type} | ${sizeInfo} | Created: ${new Date(file.created_at).toLocaleString()}</p>
                             </div>
                         </div>
@@ -749,15 +802,19 @@
                         `;
                     }
             
+                        const encoderBadge = task.encoder_type 
+                            ? `<span class="badge ${task.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${task.encoder_type}</span>` 
+                            : '';
+
                         item.innerHTML = `
                             <div class="task-info">
                                 <div style="flex: 1;">
-                                    <h4>${task.filename || 'VOD ' + (task.video_id || '')} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
+                                    <h4>${task.filename || 'VOD ' + (task.video_id || '')} ${encoderBadge} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
                                     <div class="progress-container">
                                         <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%"></div>
                                         <span class="progress-text">${task.progress}%</span>
                                     </div>
-                                    ${task.status === 'processing' ? `<button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;">View Logs</button>` : ''}
+                                    <button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;">View Logs</button>
                                 </div>
                             </div>
                             ${actionHtml}

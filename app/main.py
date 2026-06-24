@@ -59,6 +59,14 @@ def bootstrap_admin():
             db.session.rollback()
             app.logger.debug(f"Database migration note: {e}")
 
+        try:
+            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN encoder_type TEXT"))
+            db.session.commit()
+            app.logger.info("Migrated database: added encoder_type column to download_task")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.debug(f"Database migration note: {e}")
+
         if not User.query.filter_by(role='admin').first():
             admin_user = User(
                 username=os.getenv('ADMIN_USERNAME', 'admin'),
@@ -370,7 +378,8 @@ def list_tasks():
             'type': t.task_type,
             'video_id': t.video_id,
             'size': size,
-            'error': t.error_log
+            'error': t.error_log,
+            'encoder_type': t.encoder_type
         })
     return jsonify({'tasks': task_list})
 
@@ -462,7 +471,8 @@ def list_library():
             'created_at': t.created_at,
             'size': format_size(size) if isinstance(size, (int, float)) else size,
             'original_size': format_size(original_size) if isinstance(original_size, (int, float)) else None,
-            'savings': calculate_savings(original_size, size)
+            'savings': calculate_savings(original_size, size),
+            'encoder_type': t.encoder_type
         })
     return jsonify({'files': files})
 
