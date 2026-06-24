@@ -12,7 +12,7 @@ from dotenv import load_dotenv
 import requests
 
 from models import db, User, Favorite, DownloadTask
-from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks
+from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path
 
 
 
@@ -325,7 +325,17 @@ def task_logs(task_id):
     task = DownloadTask.query.get(task_id)
     if not task or task.user_id != current_user.id:
         return jsonify({'error': 'Task not found or unauthorized'}), 404
-    return jsonify({'logs': task.error_log or ''})
+    
+    log_path = get_log_path(task_id)
+    if os.path.exists(log_path):
+        try:
+            with open(log_path, 'r') as f:
+                logs = f.read()
+            return jsonify({'logs': logs})
+        except Exception as e:
+            return jsonify({'error': f'Could not read log file: {str(e)}'}), 500
+    
+    return jsonify({'logs': task.error_log or 'No logs available yet.'})
 
 @app.route('/api/tasks/clear_failed', methods=['POST'])
 @login_required

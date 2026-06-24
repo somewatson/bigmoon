@@ -10,7 +10,11 @@ from models import db, DownloadTask
 load_dotenv()
 
 DOWNLOADS_DIR = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+LOGS_DIR = '/app/logs'
 USE_GPU = os.getenv('USE_GPU', 'false').lower() == 'true'
+
+def get_log_path(task_id):
+    return os.path.join(LOGS_DIR, f"task_{task_id}.log")
 
 # Global registry to track active processes for cancellation
 # Key: task_id, Value: subprocess.Popen object
@@ -52,6 +56,7 @@ def cleanup_temp_files():
 
 def download_vod(url, video_id, task_id):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
+    os.makedirs(LOGS_DIR, exist_ok=True)
     
     cmd = [
         'yt-dlp',
@@ -65,52 +70,60 @@ def download_vod(url, video_id, task_id):
     
     update_task_progress(task_id, 'downloading')
     
+    cmd_str = " ".join(cmd)
+    print(f"[Task {task_id}] Executing: {cmd_str}")
+    
     try:
-        process = subprocess.Popen(
-            cmd, 
-            stdout=subprocess.PIPE, 
-            stderr=subprocess.STDOUT, 
-            text=True, 
-            bufsize=1,
-            universal_newlines=True
-        )
-        
-        active_processes[task_id] = process
-        
-        progress_re = re.compile(r'\[download\]\s+(\d+\.?\d*)%')
-        filename = None
+        with open(get_log_path(task_id), 'w') as log_file:
+            log_file.write(f"Command: {cmd_str}\n")
+            log_file.flush()
 
-        # Read output line by line
-        for line in iter(process.stdout.readline, ''):
-            if not line:
-                break
+            process = subprocess.Popen(
+                cmd, 
+                stdout=subprocess.PIPE, 
+                stderr=subprocess.STDOUT, 
+                text=True, 
+                bufsize=1,
+                universal_newlines=True
+            )
             
-            # Debug print to see what yt-dlp is actually saying
-            print(f"yt-dlp output: {line.strip()}")
+            active_processes[task_id] = process
             
-            match = progress_re.search(line)
-            if match:
-                progress = float(match.group(1))
-                update_task_progress(task_id, progress=progress)
-            
-            if '[download] Destination:' in line:
-                filename = line.split('Destination: ')[-1].strip()
-                update_task_progress(task_id, filename=filename)
-
-        process.wait()
+            progress_re = re.compile(r'\[download\]\s+(\d+\.?\d*)%')
+            filename = None
         
-        # Even if returncode != 0, check if the file actually exists
-        success = process.returncode == 0
-        if not success and filename and os.path.exists(filename):
-            success = True
+            # Read output line by line
+            for line in iter(process.stdout.readline, ''):
+                if not line:
+                    break
+                
+                print(f"[Task {task_id}] {line.strip()}")
+                log_file.write(line)
+                log_file.flush()
+                
+                match = progress_re.search(line)
+                if match:
+                    progress = float(match.group(1))
+                    update_task_progress(task_id, progress=progress)
+                
+                if '[download] Destination:' in line:
+                    filename = line.split('Destination: ')[-1].strip()
+                    update_task_progress(task_id, filename=filename)
+        
+            process.wait()
             
-        if success:
-            update_task_progress(task_id, 'completed', progress=100.0)
-            cleanup_temp_files()
-        else:
-            update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
-            cleanup_temp_files()
-            
+            # Even if returncode != 0, check if the file actually exists
+            success = process.returncode == 0
+            if not success and filename and os.path.exists(filename):
+                success = True
+                
+            if success:
+                update_task_progress(task_id, 'completed', progress=100.0)
+                cleanup_temp_files()
+            else:
+                update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
+                cleanup_temp_files()
+                
     except Exception as e:
         print(f"Error downloading {video_id}: {e}")
         print(traceback.format_exc())
@@ -175,8 +188,14 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     
     full_log = []
     last_error = ""
-
+    
+    # Create/Clear log file at the start of compression
+    os.makedirs(LOGS_DIR, exist_ok=True)
+    with open(get_log_path(task_id), 'w') as f:
+        f.write(f"Compression Task {task_id} started\n")
+    
     for encoder in encoders:
+
         prefix = mapping['prefix']
         is_hw = 'vaapi' in encoder
         preset_key = f"{prefix}_{'hw' if is_hw else 'sw'}"
@@ -204,56 +223,67 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
             output_path
         ])
         
+        cmd_str = " ".join(cmd)
+        print(f"[Task {task_id}] Executing: {cmd_str}")
+        
         log_entry = f"Attempting encoding with {encoder}..."
-        full_log.append(log_entry)
-        update_task_progress(task_id, 'processing', error_log="\n".join(full_log))
         
         try:
-            process = subprocess.Popen(
-                cmd, 
-                stdout=subprocess.PIPE, 
-                stderr=subprocess.STDOUT, 
-                text=True,
-                bufsize=1,
-                universal_newlines=True
-            )
-            active_processes[task_id] = process
-            
-            # Regex to find time=00:00:00.00
-            time_re = re.compile(r'time=(\d+):(\d+):(\d+.\d+)')
-            
-            for line in iter(process.stdout.readline, ''):
-                # Log lines to database for UI
-                full_log.append(line.strip())
-                # We don't update DB on every single line to avoid overloading SQLite
-                # but we update the overall log every few lines or when progress changes
+            # Append to the same task log file across different encoder attempts
+            with open(get_log_path(task_id), 'a') as log_file:
+                log_file.write(f"\nCommand: {cmd_str}\n")
+                log_file.write(f"{log_entry}\n")
+                log_file.flush()
+
+                process = subprocess.Popen(
+                    cmd, 
+                    stdout=subprocess.PIPE, 
+                    stderr=subprocess.STDOUT, 
+                    text=True,
+                    bufsize=1,
+                    universal_newlines=True
+                )
+                active_processes[task_id] = process
                 
-                match = time_re.search(line)
-                if match and total_duration > 0:
-                    h, m, s = map(float, match.groups())
-                    current_seconds = h * 3600 + m * 60 + s
-                    progress = min(100.0, (current_seconds / total_duration) * 100)
-                    update_task_progress(task_id, progress=round(progress, 2), error_log="\n".join(full_log[-50:])) # Keep last 50 lines for brevity in status
-            
-            process.wait()
-            
-            if process.returncode == 0:
-                update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename, error_log="Successfully encoded with " + encoder)
-                return
-            else:
-                err_msg = f"Encoder {encoder} failed with return code {process.returncode}"
-                full_log.append(err_msg)
-                last_error = err_msg
-                continue
+                # Regex to find time=00:00:00.00
+                time_re = re.compile(r'time=(\d+):(\d+):(\d+.\d+)')
+                
+                for line in iter(process.stdout.readline, ''):
+                    print(f"[Task {task_id}] {line.strip()}")
+                    log_file.write(line)
+                    log_file.flush()
+                    
+                    match = time_re.search(line)
+                    if match and total_duration > 0:
+                        h, m, s = map(float, match.groups())
+                        current_seconds = h * 3600 + m * 60 + s
+                        progress = min(100.0, (current_seconds / total_duration) * 100)
+                        # We no longer store the full log in the DB
+                        update_task_progress(task_id, progress=round(progress, 2))
+                
+                process.wait()
+                
+                if process.returncode == 0:
+                    update_task_progress(task_id, 'completed', progress=100.0, filename=output_filename, error_log="Successfully encoded with " + encoder)
+                    return
+                else:
+                    err_msg = f"Encoder {encoder} failed with return code {process.returncode}"
+                    log_file.write(f"{err_msg}\n")
+                    log_file.flush()
+                    last_error = err_msg
+                    continue
         except Exception as e:
             err_msg = f"Encoder {encoder} exception: {str(e)}"
-            full_log.append(err_msg)
+            with open(get_log_path(task_id), 'a') as log_file:
+                log_file.write(f"{err_msg}\n")
+                log_file.flush()
             last_error = err_msg
             continue
         finally:
             active_processes.pop(task_id, None)
 
-    update_task_progress(task_id, 'error', error_log=f"All encoders failed. Last error: {last_error}\n\nFull log:\n" + "\n".join(full_log))
+    update_task_progress(task_id, 'error', error_log=f"All encoders failed. Last error: {last_error}")
+
 
 def start_download_async(url, video_id, task_id):
     thread = threading.Thread(target=download_vod, args=(url, video_id, task_id))
