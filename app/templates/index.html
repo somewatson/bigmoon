@@ -687,6 +687,11 @@
             }
             window.currentTab = tabId;
             localStorage.setItem('bigmoon_current_tab', tabId);
+            
+            // Update URL state without refreshing
+            const url = new URL(window.location);
+            url.searchParams.set('tab', tabId);
+            window.history.pushState({ tab: tabId }, '', url);
         
             if(tabId === 'favorites') loadFavorites();
             if(tabId === 'automation') {
@@ -757,9 +762,23 @@
         });
 
 
-        // Initialize tab on load
         window.addEventListener('DOMContentLoaded', () => {
-            showTab(window.currentTab);
+            // Try to get tab from URL first, then from variable, then from localStorage
+            const urlParams = new URLSearchParams(window.location.search);
+            const tabFromUrl = urlParams.get('tab');
+            const initialTab = tabFromUrl || window.currentTab || localStorage.getItem('bigmoon_current_tab') || 'search';
+            showTab(initialTab);
+
+            // Intercept sidebar clicks for hybrid navigation
+            document.querySelectorAll('.nav-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    const tabId = item.getAttribute('data-tab');
+                    if (tabId) {
+                        e.preventDefault();
+                        showTab(tabId);
+                    }
+                });
+            });
         });
 
         async function searchVideos() {
