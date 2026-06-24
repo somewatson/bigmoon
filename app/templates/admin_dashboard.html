@@ -67,6 +67,26 @@
         </div>
     </div>
     <div class="stat-card">
+        <span class="stat-label">CPU Usage</span>
+        <span class="stat-value" id="cpuVal">0%</span>
+        <div class="disk-gauge-container">
+            <div class="gauge-bg">
+                <div id="cpuFill" class="gauge-fill"></div>
+            </div>
+            <span id="cpuPercent" class="gauge-text">Calculating...</span>
+        </div>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Memory Usage</span>
+        <span class="stat-value" id="memVal">0%</span>
+        <div class="disk-gauge-container">
+            <div class="gauge-bg">
+                <div id="memFill" class="gauge-fill"></div>
+            </div>
+            <span id="memPercent" class="gauge-text">Calculating...</span>
+        </div>
+    </div>
+    <div class="stat-card">
         <span class="stat-label">Total Registered Users</span>
         <span class="stat-value">{{ user_count }}</span>
     </div>
@@ -112,6 +132,32 @@
         }
     }
 
+    async function updateSystemMetrics() {
+        try {
+            const response = await fetch('/api/system/metrics');
+            const data = await response.json();
+            if (!data.error) {
+                // Update CPU
+                const cpuVal = data.cpu;
+                document.getElementById('cpuVal').textContent = cpuVal + '%';
+                const cpuFill = document.getElementById('cpuFill');
+                cpuFill.style.width = cpuVal + '%';
+                cpuFill.style.backgroundColor = cpuVal < 70 ? 'var(--success)' : (cpuVal < 90 ? '#ffeb3b' : 'var(--error)');
+                document.getElementById('cpuPercent').textContent = cpuVal + '% utilization';
+
+                // Update Memory
+                const memVal = data.memory;
+                document.getElementById('memVal').textContent = memVal + '%';
+                const memFill = document.getElementById('memFill');
+                memFill.style.width = memVal + '%';
+                memFill.style.backgroundColor = memVal < 70 ? 'var(--success)' : (memVal < 90 ? '#ffeb3b' : 'var(--error)');
+                document.getElementById('memPercent').textContent = memVal + '% utilization';
+            }
+        } catch (e) {
+            console.error('Error fetching system metrics:', e);
+        }
+    }
+
     async function loadStatus() {
         try {
             const response = await fetch('/api/system/ffmpeg');
@@ -149,5 +195,7 @@
 
     updateDiskGauge();
     loadStatus();
-</script>
+    updateSystemMetrics();
+    setInterval(updateSystemMetrics, 3000);
+}
 {% endblock %}
