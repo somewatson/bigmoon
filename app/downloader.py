@@ -64,8 +64,10 @@ def cleanup_task_files(task_id):
                 # Match if the file starts with the base name and has a temp extension
                 # or if it's a known yt-dlp temp pattern containing the task filename
                 if (file.startswith(base_name) or base_name in file) and \
-                   file.endswith(('.part', '.temp', '.ytdl')):
+                   (file.endswith(('.part', '.temp', '.ytdl')) or \
+                    (task.task_type == 'compress' and file == base_name)):
                     os.remove(os.path.join(DOWNLOADS_DIR, file))
+
     except Exception as e:
         print(f"Error cleaning up files for task {task_id}: {e}")
 
