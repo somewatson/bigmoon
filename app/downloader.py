@@ -133,11 +133,11 @@ def download_vod(url, video_id, task_id):
             if not success and filename and os.path.exists(filename):
                 success = True
                 
-    if success:
-        update_task_progress(task_id, 'completed', progress=100.0)
-        cleanup_task_files(task_id)
-        
-        # --- Task Chaining for Automation Pipeline ---
+            if success:
+                update_task_progress(task_id, 'completed', progress=100.0)
+                cleanup_task_files(task_id)
+                
+                # --- Task Chaining for Automation Pipeline ---
                 from models import MonitoredChannel
                 with DownloadTask.query.get(task_id).session.no_autoflush:
                     # Find the channel that triggered this download
@@ -165,11 +165,11 @@ def download_vod(url, video_id, task_id):
                                 db.session.commit()
                                 start_compress_async(filename, preset, new_task.id, channel.user_id, channel.target_codec)
                 # ---------------------------------------------
-    else:
-        update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
-        cleanup_task_files(task_id)
+            else:
+                update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
+                cleanup_task_files(task_id)
         
-    except Exception as e:
+        except Exception as e:
         print(f"Error downloading {video_id}: {e}")
         print(traceback.format_exc())
         update_task_progress(task_id, 'error')
