@@ -536,7 +536,7 @@ def list_videos():
         vod_res.raise_for_status()
         videos = vod_res.json().get('data', [])
         
-        return jsonify({'channel': user_data[0], 'videos': videos})
+        return jsonify({'channel_info': user_data[0], 'videos': videos})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -573,17 +573,25 @@ def manage_favorites():
             'Authorization': f'Bearer {token}'
         }
         
-        # Fetch all favorite names
+        # Fetch favorite names in chunks of 50 to avoid URL length and rate limits
         names = [f.channel_name for f in favs]
         if names:
-            # Twitch API allows multiple logins in one request separated by commas
-            user_res = requests.get(
-                f"https://api.twitch.tv/helix/users?login={','.join(names)}", 
-                headers=headers
-            )
-            user_res.raise_for_status()
-            users_data = user_res.json().get('data', [])
-            user_map = {u['login']: u for u in users_data}
+            user_map = {}
+            chunk_size = 50
+            for i in range(0, len(names), chunk_size):
+                chunk = names[i:i + chunk_size]
+                try:
+                    user_res = requests.get(
+                        f"https://api.twitch.tv/helix/users?login={','.join(chunk)}", 
+                        headers=headers,
+                        timeout=10
+                    )
+                    user_res.raise_for_status()
+                    users_data = user_res.json().get('data', [])
+                    for u in users_data:
+                        user_map[u['login']] = u
+                except Exception as e:
+                    app.logger.error(f"Error fetching chunk {i//chunk_size + 1}: {e}")
             
             for f in favs:
                 u_info = user_map.get(f.channel_name, {})

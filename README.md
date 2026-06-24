@@ -18,7 +18,8 @@ Big Moon is a self-hosted Twitch VOD downloader with a web interface, user authe
 - **Modern UI/UX**:
   - **Glassmorphism**: A polished, semi-transparent interface with dynamic accents.
   - **Collapsible Navigation**: Adaptive sidebar for maximum workspace.
-  - **Live Feedback**: Visual progress bars with pulsing animations and toast notifications.
+  - **Live Feedback**: Visual progress bars with pulsing animations and toast notifications, including real-time task progress in log views.
+  - **Rich Channel Info**: Integrated channel descriptions and robust avatar loading for discovery and favorites.
 - **User Management**: 
   - **Admin Command Center**: High-level dashboard with disk utilization gauges and hardware health monitoring.
   - **User**: Search, request VOD downloads, and manage a personal library.

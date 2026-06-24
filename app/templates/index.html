@@ -305,22 +305,64 @@
         .automation-card {
             background: var(--card-bg);
             border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 15px;
+            border-left: 4px solid var(--border);
+            border-radius: 12px;
+            padding: 0;
             margin-bottom: 15px;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            transition: 0.2s;
+            box-sizing: border-box;
+            overflow: hidden;
+        }
+        .automation-card:hover { border-color: var(--primary); background: #252525; transform: translateY(-2px); }
+        .automation-card.enabled { border-left-color: var(--primary); }
+        
+        .automation-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.03);
+            border-bottom: 1px solid var(--border);
+        }
+        .automation-header h4 { margin: 0; font-size: 1.2rem; color: white; font-weight: 600; }
+        
+        .automation-body { padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+        
+        .automation-section { display: flex; flex-direction: column; gap: 12px; }
+        .automation-section-title { 
+            font-size: 0.75rem; 
+            text-transform: uppercase; 
+            color: var(--text-dim); 
+            font-weight: bold; 
+            letter-spacing: 0.05em; 
+            margin-bottom: 4px;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 4px;
+        }
+        
+        .automation-settings { display: flex; flex-direction: column; gap: 12px; font-size: 0.85rem; color: var(--text-dim); }
+        .settings-group { 
+            display: flex; 
+            align-items: center; 
+            gap: 20px; 
+            flex-wrap: wrap; 
+            padding: 10px; 
+            border-radius: 8px; 
+            background: rgba(0,0,0,0.2); 
             transition: 0.2s;
         }
-        .automation-card:hover { border-color: var(--primary); }
-        .automation-header { display: flex; justify-content: space-between; align-items: center; }
-        .automation-header h4 { margin: 0; font-size: 1.1rem; }
-        .automation-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; color: var(--text-dim); }
-        .setting-item { display: flex; align-items: center; gap: 4px; }
+        .settings-group:hover { background: rgba(0,0,0,0.3); }
+        .settings-group.toggles { background: transparent; padding: 0; }
+        
+        .setting-item { display: flex; align-items: center; gap: 6px; }
         .setting-item input[type="checkbox"] { width: auto; height: auto; margin: 0; cursor: pointer; flex-shrink: 0; }
-        .setting-item label, .setting-item span { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .setting-item label, .setting-item span { cursor: pointer; display: flex; align-items: center; gap: 6px; font-weight: 500; }
+        .setting-item select { padding: 4px 8px; border-radius: 4px; background: #121212; color: white; border: 1px solid var(--border); font-size: 0.8rem; }
         .setting-item input { width: auto; }
+        
+        .channel-description { font-size: 0.9rem; color: var(--text-dim); margin: 5px 0; line-height: 1.4; }
 
         /* Tooltip System */
         [data-tooltip] { position: relative; cursor: pointer; }
@@ -717,7 +759,7 @@
                         <img src="${profileImg}" alt="avatar">
                         <div>
                             <h2>${channel}</h2>
-                            <p style="color: var(--text-dim); margin: 0;">Twitch Channel</p>
+                            <p class="channel-description">${data.channel_info?.description || 'No description available.'}</p>
                         </div>
                         <button class="fav-btn" onclick="toggleFavorite('${channel}')" data-tooltip="Add to Favorites">❤️</button>
                     </div>
@@ -1148,46 +1190,60 @@
 
                 data.channels.forEach(c => {
                     const item = document.createElement('div');
-                    item.className = 'automation-card';
+                    item.className = `automation-card ${c.enabled ? 'enabled' : ''}`;
                     item.innerHTML = `
                         <div class="automation-header">
-                            <h4>${c.channel_name}</h4>
-                                 <button onclick="deleteMonitored(${c.id})" style="background: var(--error); padding: 5px 10px; font-size: 0.7rem;" data-tooltip="Stop monitoring this channel">Remove</button>
-                                 </div>
-                                 <div class="automation-settings">
-                                     <div class="setting-item">
-                                         <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="updateMonitored(${c.id}, {enabled: this.checked})">
-                                         <span>Enabled</span>
-                                     </div>
-                                     <div class="setting-item">
-                                         <input type="checkbox" ${c.auto_compress ? 'checked' : ''} onchange="updateMonitored(${c.id}, {auto_compress: this.checked})">
-                                         <span>Auto-Compress</span>
-                                     </div>
-                        <div class="setting-item" style="grid-column: span 2;">
-                            <label>Presets:</label>
-                            <select onchange="updateMonitored(${c.id}, {compression_presets: this.value})" style="flex: 1;">
-                                <option value="fast" ${c.compression_presets === 'fast' ? 'selected' : ''}>Fast</option>
-                                <option value="balanced" ${c.compression_presets === 'balanced' ? 'selected' : ''}>Balanced</option>
-                                <option value="high" ${c.compression_presets === 'high' ? 'selected' : ''}>High Quality</option>
-                            </select>
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <h4>${c.channel_name}</h4>
+                                <span class="badge ${c.enabled ? 'badge-hw' : 'badge-sw'}" style="font-size: 0.6rem;">${c.enabled ? 'Active' : 'Disabled'}</span>
+                            </div>
+                            <button onclick="deleteMonitored(${c.id})" style="background: var(--error); padding: 5px 10px; font-size: 0.7rem;" data-tooltip="Stop monitoring this channel">Remove</button>
                         </div>
-
-                                     <div class="setting-item">
-                                         <label>Codec:</label>
-                                         <select onchange="updateMonitored(${c.id}, {target_codec: this.value})" style="flex: 1;">
-                                             <option value="AV1" ${c.target_codec === 'AV1' ? 'selected' : ''}>AV1</option>
-                                             <option value="H.264" ${c.target_codec === 'H.264' ? 'selected' : ''}>H.264</option>
-                                             <option value="H.265" ${c.target_codec === 'H.265' ? 'selected' : ''}>H.265</option>
-                                         </select>
-                                     </div>
-                                     <div class="setting-item">
-                                         <input type="checkbox" ${c.delete_original ? 'checked' : ''} onchange="updateMonitored(${c.id}, {delete_original: this.checked})">
-                                         <span>Delete Original</span>
-                                     </div>
-                                 </div>
-                             `;
-                             list.appendChild(item);
-                         });
+                        <div class="automation-body">
+                            <div class="automation-section">
+                                <div class="automation-section-title">General</div>
+                                <div class="settings-group toggles">
+                                    <div class="setting-item">
+                                        <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="updateMonitored(${c.id}, {enabled: this.checked}); this.closest('.automation-card').classList.toggle('enabled', this.checked)">
+                                        <span>Enabled</span>
+                                    </div>
+                                    <div class="setting-item">
+                                        <input type="checkbox" ${c.auto_compress ? 'checked' : ''} onchange="updateMonitored(${c.id}, {auto_compress: this.checked})">
+                                        <span>Auto-Compress</span>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="automation-section">
+                                <div class="automation-section-title">Compression Settings</div>
+                                <div class="automation-settings">
+                                    <div class="settings-group">
+                                        <div class="setting-item">
+                                            <label>Codec:</label>
+                                            <select onchange="updateMonitored(${c.id}, {target_codec: this.value})">
+                                                <option value="AV1" ${c.target_codec === 'AV1' ? 'selected' : ''}>AV1</option>
+                                                <option value="H.264" ${c.target_codec === 'H.264' ? 'selected' : ''}>H.264</option>
+                                                <option value="H.265" ${c.target_codec === 'H.265' ? 'selected' : ''}>H.265</option>
+                                            </select>
+                                        </div>
+                                        <div class="setting-item">
+                                            <label>Presets:</label>
+                                            <select onchange="updateMonitored(${c.id}, {compression_presets: this.value})">
+                                                <option value="fast" ${c.compression_presets === 'fast' ? 'selected' : ''}>Fast</option>
+                                                <option value="balanced" ${c.compression_presets === 'balanced' ? 'selected' : ''}>Balanced</option>
+                                                <option value="high" ${c.compression_presets === 'high' ? 'selected' : ''}>High Quality</option>
+                                            </select>
+                                        </div>
+                                        <div class="setting-item">
+                                            <input type="checkbox" ${c.delete_original ? 'checked' : ''} onchange="updateMonitored(${c.id}, {delete_original: this.checked})">
+                                            <span>Delete Original</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
                      } catch (e) {
                          console.error('Failed to load monitored channels:', e);
                     }
