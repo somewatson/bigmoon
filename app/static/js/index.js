@@ -55,7 +55,16 @@ window.showTab = function(tabId) {
     url.searchParams.set('tab', tabId);
     window.history.pushState({ tab: tabId }, '', url);
 
+    // Sync sidebar highlight
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.getAttribute('data-tab') === tabId) {
+            item.classList.add('active');
+        }
+    });
+    
     if(tabId === 'favorites') loadFavorites();
+
     if(tabId === 'automation') {
         loadMonitored();
         populateFavAutomationGrid();
@@ -143,6 +152,11 @@ window.addEventListener('DOMContentLoaded', () => {
             if (tabId) {
                 e.preventDefault();
                 showTab(tabId);
+            } else if (item.id === 'nav-admin') {
+                // Redirect to admin dashboard if Admin is clicked and it's a link
+                // But if it only toggles the menu, we handle it via toggleAdminMenu
+                // The requirement says "Go to Admin page when I click Admin"
+                window.location.href = '/admin';
             }
         });
     });
