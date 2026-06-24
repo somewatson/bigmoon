@@ -68,18 +68,16 @@
         }
         .fav-mini-card { 
             background: var(--card-bg); 
-            border: 1px solid var(--border); 
+            padding: 12px 15px; 
             border-radius: 8px; 
-            padding: 10px; 
+            border: 1px solid var(--border); 
             display: flex; 
-            flex-direction: column; 
             align-items: center; 
-            gap: 8px; 
+            gap: 12px; 
             cursor: pointer; 
             transition: 0.2s; 
-            text-align: center; 
         }
-        .fav-mini-card:hover { border-color: var(--primary); background: #252525; transform: translateY(-2px); }
+        .fav-mini-card:hover { background: #2a2a2a; border-color: var(--primary); transform: translateY(-2px); }
         .fav-mini-card img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid transparent; transition: 0.2s; }
         .fav-mini-card:hover img { border-color: var(--primary); }
         .fav-mini-card span { font-size: 0.85rem; font-weight: 500; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
@@ -101,18 +99,32 @@
         .fav-card img { width: 80px; height: 80px; border-radius: 50%; object-fit: cover; border: 2px solid var(--border); }
         .fav-card-info { flex: 1; display: flex; flex-direction: column; gap: 5px; padding-right: 30px; }
         .fav-card-name { font-weight: bold; font-size: 1.2rem; color: white; }
-        .fav-card-description { font-size: 0.85rem; color: var(--text-dim); margin: 0; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+        .fav-card-description { 
+            font-size: 0.85rem; 
+            color: var(--text-dim); 
+            margin: 0; 
+            line-height: 1.4; 
+            display: -webkit-box; 
+            -webkit-line-clamp: 3; 
+            -webkit-box-orient: vertical; 
+            overflow: hidden; 
+            text-overflow: ellipsis;
+        }
         .fav-card-link { 
             font-size: 0.85rem; 
-            color: var(--primary); 
+            color: #bbb; 
             text-decoration: none; 
             margin-top: 8px; 
             display: inline-flex; 
             align-items: center; 
             gap: 5px;
             font-weight: 500;
+            transition: 0.2s;
         }
-        .fav-card-link:hover { text-decoration: underline; }
+        .fav-card-link:hover { 
+            color: var(--primary);
+            text-decoration: underline; 
+        }
         .fav-card-remove { position: absolute; top: 15px; right: 15px; background: none; border: none; color: var(--text-dim); cursor: pointer; font-size: 1.2rem; transition: 0.2s; padding: 5px; }
         .fav-card-remove:hover { color: var(--error); }
         
@@ -704,7 +716,10 @@
                     
                     card.innerHTML = `
                         <img src="${thumbUrl}" alt="avatar" onerror="this.src='https://api.dicebear.com/7.x/initials/svg?seed=${channel}'">
-                        <span>${channel}</span>
+                        <div class="fav-card-info" style="flex: 1; display: flex; flex-direction: column; gap: 2px; text-align: left; overflow: hidden;">
+                            <span class="fav-card-name" style="font-size: 0.9rem; font-weight: bold; color: white; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${channel}</span>
+                            <p class="fav-card-description" style="font-size: 0.75rem; color: var(--text-dim); margin: 0; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;">${fav.description || 'No description available.'}</p>
+                        </div>
                     `;
                     card.onclick = (e) => addFavToAutomation(channel, e);
                     grid.appendChild(card);
