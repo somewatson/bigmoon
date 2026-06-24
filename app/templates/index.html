@@ -958,12 +958,11 @@
                          });
                      } catch (e) {
                          console.error('Failed to load monitored channels:', e);
-                     }
-                 }
+                    }
+                }
 
-        }
+                async function addMonitoredChannel() {
 
-        async function addMonitoredChannel() {
             const input = document.getElementById('autoChannelInput');
             const channel_name = input.value.trim();
             if (!channel_name) return;
