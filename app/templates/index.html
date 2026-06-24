@@ -470,10 +470,6 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2>Auto-Download Pipeline</h2>
                     <div style="display: flex; gap: 10px; align-items: center;">
-                        <div class="fav-dropdown-container">
-                            <button onclick="toggleFavDropdown()" style="padding: 10px; background: #444; font-size: 0.8rem;" data-tooltip="Quick select from favorites">❤️ Favorites</button>
-                            <div id="favAutomationDropdown" class="fav-dropdown"></div>
-                        </div>
                         <input type="text" id="autoChannelInput" placeholder="Channel name..." style="max-width: 200px;">
                         <button onclick="addMonitoredChannel()">Add Channel</button>
                     </div>
@@ -560,7 +556,7 @@
     <script>
         // Define functions globally to ensure they are accessible from inline onclick attributes
         window.currentTab = '{{ current_tab }}';
-        if (!window.currentTab) {
+        if (!window.currentTab || window.currentTab === 'None') {
             window.currentTab = localStorage.getItem('bigmoon_current_tab') || 'search';
         }
         let apiRetryCount = 0;
@@ -618,7 +614,6 @@
             if(tabId === 'automation') {
                 loadMonitored();
                 populateFavAutomationGrid();
-                populateFavDropdown();
             }
             if(tabId === 'library') loadLibrary();
             if(tabId === 'compress') loadFiles();
@@ -626,34 +621,13 @@
         }
 
         function toggleFavDropdown() {
-            const dropdown = document.getElementById('favAutomationDropdown');
-            dropdown.classList.toggle('active');
+            // This function is no longer needed as the dropdown was removed.
+        }
+        
+        async function populateFavDropdown() {
+            // This function is no longer needed as the dropdown was removed.
         }
 
-        async function populateFavDropdown() {
-            const dropdown = document.getElementById('favAutomationDropdown');
-            try {
-                const response = await fetch('/api/favorites');
-                const data = await response.json();
-                dropdown.innerHTML = '';
-                
-                if (data.favorites.length === 0) {
-                    dropdown.innerHTML = '<div class="fav-dropdown-item">No favorites found</div>';
-                    return;
-                }
-                
-                data.favorites.forEach(channel => {
-                    const item = document.createElement('div');
-                    item.className = 'fav-dropdown-item';
-                    const thumbUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
-                    item.innerHTML = `<img src="${thumbUrl}" alt="avatar"> <span>${channel}</span>`;
-                    item.onclick = () => selectFavForAutomation(channel);
-                    dropdown.appendChild(item);
-                });
-            } catch (e) {
-                dropdown.innerHTML = '<div class="fav-dropdown-item">Error loading favorites</div>';
-            }
-        }
 
         async function populateFavAutomationGrid() {
             const grid = document.getElementById('favAutomationGrid');
