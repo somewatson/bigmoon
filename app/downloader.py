@@ -175,7 +175,7 @@ def download_vod(url, video_id, task_id):
             update_task_progress(task_id, 'error')
             cleanup_task_files(task_id)
         finally:
-        active_processes.pop(task_id, None)
+            active_processes.pop(task_id, None)
 
 
 def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
