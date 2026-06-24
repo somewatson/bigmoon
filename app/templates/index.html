@@ -311,8 +311,8 @@
         .automation-header h4 { margin: 0; font-size: 1.1rem; }
         .automation-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; color: var(--text-dim); }
         .setting-item { display: flex; align-items: center; gap: 8px; }
-        .setting-item input[type="checkbox"] { width: auto; height: auto; margin: 0; cursor: pointer; }
-        .setting-item label { cursor: pointer; }
+        .setting-item input[type="checkbox"] { width: auto; height: auto; margin: 0; cursor: pointer; flex-shrink: 0; }
+        .setting-item label { cursor: pointer; display: flex; align-items: center; gap: 8px; }
         .setting-item input { width: auto; }
 
         /* Tooltip System */
@@ -555,7 +555,10 @@
 
     <script>
         // Define functions globally to ensure they are accessible from inline onclick attributes
-        window.currentTab = '{{ current_tab }}' || localStorage.getItem('bigmoon_current_tab') || 'search';
+        window.currentTab = '{{ current_tab }}';
+        if (!window.currentTab) {
+            window.currentTab = localStorage.getItem('bigmoon_current_tab') || 'search';
+        }
         let apiRetryCount = 0;
 
         async function apiFetch(url, options = {}) {
@@ -718,9 +721,10 @@
                 if (data.error) throw new Error(data.error);
     
     
+                const profileImg = data.channel_info?.profile_image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
                 channelInfo.innerHTML = `
                     <div class="channel-card">
-                        <img src="https://api.dicebear.com/7.x/initials/svg?seed=${channel}" alt="avatar">
+                        <img src="${profileImg}" alt="avatar">
                         <div>
                             <h2>${channel}</h2>
                             <p style="color: var(--text-dim); margin: 0;">Twitch Channel</p>
