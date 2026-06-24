@@ -11,8 +11,8 @@ services:
     volumes:
       - ./data:/data
       - ./app:/app
-      - ./app/downloads:/app/downloads
-      - ./app/logs:/app/logs
+      - ./downloads:/app/downloads
+      - ./logs:/app/logs
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
     devices:
