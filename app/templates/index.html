@@ -60,7 +60,31 @@
         .fav-dropdown-item:hover { background: #333; color: white; }
         .fav-dropdown-item img { width: 24px; height: 24px; border-radius: 50%; }
 
-        /* Enhanced Favorites Card */
+        .fav-automation-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); 
+            gap: 12px; 
+            margin-bottom: 25px; 
+        }
+        .fav-mini-card { 
+            background: var(--card-bg); 
+            border: 1px solid var(--border); 
+            border-radius: 8px; 
+            padding: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            align-items: center; 
+            gap: 8px; 
+            cursor: pointer; 
+            transition: 0.2s; 
+            text-align: center; 
+        }
+        .fav-mini-card:hover { border-color: var(--primary); background: #252525; transform: translateY(-2px); }
+        .fav-mini-card img { width: 48px; height: 48px; border-radius: 50%; object-fit: cover; border: 2px solid transparent; transition: 0.2s; }
+        .fav-mini-card:hover img { border-color: var(--primary); }
+        .fav-mini-card span { font-size: 0.85rem; font-weight: 500; color: var(--text-dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; }
+        .fav-mini-card:hover span { color: white; }
+
         .fav-card { 
             background: var(--card-bg); 
             padding: 15px; 
@@ -273,6 +297,8 @@
         .automation-header h4 { margin: 0; font-size: 1.1rem; }
         .automation-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; color: var(--text-dim); }
         .setting-item { display: flex; align-items: center; gap: 8px; }
+        .setting-item input[type="checkbox"] { width: auto; height: auto; margin: 0; cursor: pointer; }
+        .setting-item label { cursor: pointer; }
         .setting-item input { width: auto; }
 
         /* Tooltip System */
@@ -429,12 +455,25 @@
             <div class="sticky-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2>Auto-Download Pipeline</h2>
-                <div style="display: flex; gap: 10px;">
-                    <input type="text" id="autoChannelInput" placeholder="Channel name..." style="max-width: 200px;">
-                    <div class="fav-dropdown-container">
-                        <button onclick="toggleFavDropdown()" style="background: #444; font-size: 0.8rem;" data-tooltip="Choose from favorites">❤️ Favorites</button>
-                        <div id="favAutomationDropdown" class="fav-dropdown"></div>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="autoChannelInput" placeholder="Channel name..." style="max-width: 200px;">
+                        <button onclick="addMonitoredChannel()">Add Channel</button>
                     </div>
+                </div>
+            </div>
+            
+                <div id="favAutomationSection" style="display: block; margin-bottom: 30px;">
+                    <h3 style="font-size: 1rem; color: var(--text-dim); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                        <span>❤️ Quick Add from Favorites</span>
+                    </h3>
+                    <div id="favAutomationGrid" class="favorites-grid"></div>
+                </div>
+
+
+            <p style="color: var(--text-dim); margin-bottom: 20px;">Automatically monitor channels and chain downloads to compressions.</p>
+            <div id="automationList" class="task-list"></div>
+        </div>
+
                     <button onclick="addMonitoredChannel()">Add Channel</button>
                 </div>
 
@@ -978,43 +1017,68 @@
 
 
         async function loadFavorites() {
-            const response = await fetch('/api/favorites');
-            const data = await response.json();
-            const grid = document.getElementById('favoritesGrid');
-            grid.innerHTML = '';
-            
-            if(data.favorites.length === 0) {
-                grid.innerHTML = `
-                    <div class="empty-state" style="grid-column: 1 / -1;">
-                        <div class="icon">❤️</div>
-                        <h3>No favorite channels</h3>
-                        <p>Search for your favorite streamers and save them here for quick access.</p>
-                    </div>
-                `;
-                return;
+            try {
+                const response = await fetch('/api/favorites');
+                const data = await response.json();
+                const grid = document.getElementById('favoritesGrid');
+                grid.innerHTML = '';
+                
+                if(data.favorites.length === 0) {
+                    grid.innerHTML = `
+                        <div class="empty-state" style="grid-column: 1 / -1;">
+                            <div class="icon">❤️</div>
+                            <h3>No favorite channels</h3>
+                            <p>Search for your favorite streamers and save them here for quick access.</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                data.favorites.forEach(fav => {
+                    const channel = fav.channel_name;
+                    const card = document.createElement('div');
+                    card.className = 'fav-card';
+                    
+                    const thumbUrl = fav.profile_image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
+                    
+                    card.innerHTML = `
+                        <img src="${thumbUrl}" alt="avatar">
+                        <div class="fav-card-info">
+                            <span class="fav-card-name">${channel}</span>
+                            <a href="https://twitch.tv/${channel}" target="_blank" class="fav-card-link">Visit Twitch ↗</a>
+                        </div>
+                        <button onclick="removeFavorite('${channel}', event)" data-tooltip="Remove from Favorites">✕</button>
+                    `;
+                    card.onclick = () => {
+                        document.getElementById('channelInput').value = channel;
+                        window.showTab('search');
+                        searchVideos();
+                    };
+                    grid.appendChild(card);
+                });
+            } catch (e) {
+                console.error('Failed to load favorites:', e);
             }
-            
-            data.favorites.forEach(channel => {
-                const card = document.createElement('div');
-                card.className = 'fav-card';
-                
-                const thumbUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
-                
-                card.innerHTML = `
-                    <img src="${thumbUrl}" alt="avatar">
-                    <div class="fav-card-info">
-                        <span class="fav-card-name">${channel}</span>
-                        <a href="https://twitch.tv/${channel}" target="_blank" class="fav-card-link">Visit Twitch ↗</a>
-                    </div>
-                    <button onclick="removeFavorite('${channel}', event)" data-tooltip="Remove from Favorites">✕</button>
-                `;
-                card.onclick = () => {
-                    document.getElementById('channelInput').value = channel;
-                    window.showTab('search');
-                    searchVideos();
-                };
-                grid.appendChild(card);
-            });
+        }
+
+        async function addFavToAutomation(channel, event) {
+            event.stopPropagation();
+            try {
+                const response = await fetch('/api/monitored', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel_name: channel })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                } else {
+                    showToast(`Monitoring ${channel} started!`, 'success');
+                    loadMonitored();
+                }
+            } catch (e) {
+                showToast('Error adding channel', 'error');
+            }
         }
 
         async function loadMonitored() {
@@ -1052,11 +1116,15 @@
                                          <input type="checkbox" ${c.auto_compress ? 'checked' : ''} onchange="updateMonitored(${c.id}, {auto_compress: this.checked})">
                                          <span>Auto-Compress</span>
                                      </div>
-                                     <div class="setting-item" style="grid-column: span 2;">
-                                         <label>Presets:</label>
-                                         <input type="text" value="${c.compression_presets}" placeholder="e.g. balanced,high" 
-                                                onblur="updateMonitored(${c.id}, {compression_presets: this.value})" style="flex: 1; padding: 4px;">
-                                     </div>
+                        <div class="setting-item" style="grid-column: span 2;">
+                            <label>Presets:</label>
+                            <select onchange="updateMonitored(${c.id}, {compression_presets: this.value})" style="flex: 1;">
+                                <option value="fast" ${c.compression_presets === 'fast' ? 'selected' : ''}>Fast</option>
+                                <option value="balanced" ${c.compression_presets === 'balanced' ? 'selected' : ''}>Balanced</option>
+                                <option value="high" ${c.compression_presets === 'high' ? 'selected' : ''}>High Quality</option>
+                            </select>
+                        </div>
+
                                      <div class="setting-item">
                                          <label>Codec:</label>
                                          <select onchange="updateMonitored(${c.id}, {target_codec: this.value})" style="flex: 1;">
@@ -1415,6 +1483,7 @@
         window.copyLogsToClipboard = copyLogsToClipboard;
         window.refreshLogs = refreshLogs;
         window.scrollToBottom = scrollToBottom;
+        window.addFavToAutomation = addFavToAutomation;
         window.loadFavorites = loadFavorites;
         window.loadLibrary = loadLibrary;
         window.removeFavorite = removeFavorite;

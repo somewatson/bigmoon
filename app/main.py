@@ -342,8 +342,10 @@ def get_thumbnail(filename):
         subprocess.run(cmd, check=True, capture_output=True, timeout=30)
         return send_from_directory(thumb_dir, thumb_filename)
     except subprocess.TimeoutExpired:
+        app.logger.error(f"Thumbnail generation timed out for {filename}")
         return jsonify({'error': 'Thumbnail generation timed out'}), 504
     except Exception as e:
+        app.logger.error(f"Thumbnail generation failed for {filename}: {str(e)}")
         return jsonify({'error': f'Thumbnail generation failed: {str(e)}'}), 500
 
 @app.route('/api/system/metrics')
@@ -561,7 +563,40 @@ def manage_favorites():
             
     # GET all favorites
     favs = Favorite.query.filter_by(user_id=current_user.id).all()
-    return jsonify({'favorites': [f.channel_name for f in favs]})
+    
+    # Enrich favorites with profile images from Twitch
+    enriched_favs = []
+    try:
+        token = get_twitch_token()
+        headers = {
+            'Client-ID': os.getenv('TWITCH_CLIENT_ID'),
+            'Authorization': f'Bearer {token}'
+        }
+        
+        # Fetch all favorite names
+        names = [f.channel_name for f in favs]
+        if names:
+            # Twitch API allows multiple logins in one request separated by commas
+            user_res = requests.get(
+                f"https://api.twitch.tv/helix/users?login={','.join(names)}", 
+                headers=headers
+            )
+            user_res.raise_for_status()
+            user_data = {u['login']: u['profile_image_url'] for u in user_res.json().get('data', [])}
+            
+            for f in favs:
+                enriched_favs.append({
+                    'channel_name': f.channel_name,
+                    'profile_image_url': user_data.get(f.channel_name, '')
+                })
+        else:
+            enriched_favs = []
+    except Exception as e:
+        app.logger.error(f"Error enriching favorites: {e}")
+        # Fallback to names only if API fails
+        enriched_favs = [{'channel_name': f.channel_name, 'profile_image_url': ''} for f in favs]
+
+    return jsonify({'favorites': enriched_favs})
 
 @app.route('/api/monitored', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @login_required
