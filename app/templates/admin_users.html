@@ -87,7 +87,7 @@
 
     async function loadUsers() {
         try {
-            const response = await fetch('/admin/users_list');
+                const response = await fetch('/api/admin/users');
             const data = await response.json();
             const list = document.getElementById('userList');
             list.innerHTML = '';
