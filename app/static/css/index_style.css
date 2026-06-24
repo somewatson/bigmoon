@@ -22,7 +22,12 @@ body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:
 .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: white; }
 .logout-btn { margin-top: auto; color: var(--error); text-align: center; display: flex; align-items: center; gap: 12px; justify-content: center; }
 
-/* Favorites Dropdown */
+.nav-submenu { margin-left: 20px; display: none; flex-direction: column; gap: 5px; padding-left: 10px; border-left: 1px solid var(--border); }
+.nav-submenu.active { display: flex; }
+.submenu-item { padding: 8px 15px; font-size: 0.85rem; color: var(--text-dim); text-decoration: none; border-radius: 4px; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
+.submenu-item:hover { color: white; background: #222; }
+.submenu-item.active { color: white; font-weight: bold; background: rgba(145, 70, 255, 0.1); }
+
 .fav-dropdown-container { position: relative; display: inline-block; }
 .fav-dropdown { 
     display: none; 
@@ -255,7 +260,7 @@ button:hover { background: var(--primary-hover); }
 .bulk-actions { display: none; gap: 12px; align-items: center; background: #1a1a1a; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--primary); }
 .bulk-actions.active { display: flex; }
 
-.compress-section { display: flex; flex-direction: column; gap: 12px; max-width: 1200px; }
+.compress-section { display: flex; flex-direction: column; gap: 12px; }
 .file-item { 
     background: var(--card-bg); 
     padding: 15px; 
