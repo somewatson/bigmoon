@@ -172,6 +172,7 @@
                     <h3 style="margin: 0;">Task Logs</h3>
                     <div style="display: flex; gap: 10px;">
                         <button onclick="copyLogsToClipboard()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy Logs</button>
+                        <button onclick="refreshLogs()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh</button>
                         <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Scroll to Bottom</button>
                     </div>
                 </div>
@@ -412,24 +413,20 @@
             
             window.activeLogTaskId = taskId;
             
-            // Determine if we should poll based on task status
-            // We need to check the current status first
+            // Always start polling when logs are viewed to ensure they stay updated
+            if (window.logPollingInterval) clearInterval(window.logPollingInterval);
+            window.logPollingInterval = setInterval(() => fetchLogs(taskId), 2000);
+            
+            // Initial check for LIVE badge
             try {
                 const response = await fetch('/api/tasks');
                 const data = await response.json();
                 const task = data.tasks.find(t => t.id === taskId);
-                
-                if (task && (task.status === 'downloading' || task.status === 'processing')) {
-                    window.logPollingInterval = setInterval(() => fetchLogs(taskId), 2000);
-                    updateLiveBadge(true);
-                } else {
-                    updateLiveBadge(false);
-                }
+                updateLiveBadge(task && (task.status === 'downloading' || task.status === 'processing'));
             } catch (e) {
-                console.error('Error checking task status:', e);
+                console.error('Error checking task status for badge:', e);
             }
             
-            // Initial fetch
             await fetchLogs(taskId);
         }
 
@@ -470,16 +467,14 @@
                     }
                 }
                 
-                // Check if task finished to stop polling
-                const taskRes = await fetch('/api/tasks');
-                const taskData = await taskRes.json();
-                const task = taskData.tasks.find(t => t.id === taskId);
-                if (task && task.status !== 'downloading' && task.status !== 'processing') {
-                    if (window.logPollingInterval) {
-                        clearInterval(window.logPollingInterval);
-                        window.logPollingInterval = null;
-                        updateLiveBadge(false);
-                    }
+                // Update LIVE badge based on current status
+                try {
+                    const taskRes = await fetch('/api/tasks');
+                    const taskData = await taskRes.json();
+                    const task = taskData.tasks.find(t => t.id === taskId);
+                    updateLiveBadge(task && (task.status === 'downloading' || task.status === 'processing'));
+                } catch (e) {
+                    console.error('Error updating live badge:', e);
                 }
             } catch (e) {
                 console.error('Error fetching logs:', e);
@@ -528,6 +523,13 @@
                     console.error('Copy failed:', fallbackError);
                     showToast('Failed to copy logs', 'error');
                 }
+            }
+        }
+
+        async function refreshLogs() {
+            if (window.activeLogTaskId) {
+                await fetchLogs(window.activeLogTaskId);
+                showToast('Logs refreshed', 'info');
             }
         }
 
@@ -882,6 +884,7 @@
         window.viewTaskLogs = viewTaskLogs;
         window.closeLogs = closeLogs;
         window.copyLogsToClipboard = copyLogsToClipboard;
+        window.refreshLogs = refreshLogs;
         window.scrollToBottom = scrollToBottom;
         window.loadFavorites = loadFavorites;
         window.loadLibrary = loadLibrary;
