@@ -857,7 +857,11 @@ def list_library():
             encoder_type = task.encoder_type
             created_at = task.created_at
             
-            if task.task_type == 'compress':
+            if task.task_type == 'compress' and not filename.startswith('compressed_'):
+                # If it's a compression task but the file doesn't start with 'compressed_',
+                # it's actually the source file, not the compressed version.
+                task_type = 'download'
+            elif task.task_type == 'compress':
                 parts = filename.split('_', 3)
                 if len(parts) >= 4:
                     original_filename = parts[3]
