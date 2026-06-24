@@ -95,9 +95,6 @@ def download_vod(url, video_id, task_id):
         url
     ]
     
-    if USE_GPU:
-        cmd.extend(['--postprocessor-args', 'ffmpeg:-c:v h264_qsv'])
-    
     update_task_progress(task_id, 'downloading')
     
     cmd_str = " ".join(cmd)
