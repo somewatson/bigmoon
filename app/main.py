@@ -340,33 +340,42 @@ def system_metrics():
         return jsonify({'error': 'psutil not installed'}), 500
     
     try:
-        # In Docker, we mount /proc to /host/proc. 
-        # psutil doesn't natively support a custom proc path, 
-        # but we can check if we are in a container and use a workaround or 
-        # read the host files directly if needed.
-        # For most Linux containers with /proc mounted, psutil.cpu_percent(interval=None) 
-        # might return 0.0 if the container is restricted.
-        
-        cpu = psutil.cpu_percent(interval=None)
+        # Use a small interval to ensure we get a reading. 
+        # interval=None returns 0.0 on the first call.
+        cpu = psutil.cpu_percent(interval=0.1)
         mem = psutil.virtual_memory().percent
         
-        # If metrics are still 0.0, try to read from the host-mounted /host/proc/stat
-        if cpu == 0.0:
+        # If metrics are still 0, we can try direct proc reads as a fallback
+        if cpu == 0.0 and mem == 0.0:
+            # Fallback to manual /proc reading if available
             try:
-                with open('/host/proc/stat', 'r') as f:
-                    line = f.readline()
-                    if line:
-                        # This is a very simplified CPU calculation
-                        parts = line.split()
-                        idle = float(parts[4])
-                        total = sum(map(float, parts[1:8]))
-                        # Note: This is a snapshot; for real % we need two samples.
-                        # But as a fallback, we can return the last known or just accept the zero.
-                        pass
+                # Read Memory from /proc/meminfo
+                with open('/proc/meminfo', 'r') as f:
+                    lines = f.readlines()
+                    mem_total = 0
+                    mem_available = 0
+                    for line in lines:
+                        if 'MemTotal:' in line:
+                            mem_total = int(line.split()[1])
+                        elif 'MemAvailable:' in line:
+                            mem_available = int(line.split()[1])
+                    if mem_total > 0:
+                        mem = round(((mem_total - mem_available) / mem_total) * 100, 1)
             except:
                 pass
 
-        # If both are 0, we might be in a restricted environment
+            try:
+                # Basic CPU load as fallback
+                import os
+                load1, load5, load15 = os.getloadavg()
+                # This is not a %, but we can use it as an indicator
+                # For simplicity, if load exists, we return a dummy non-zero or just the load
+                # But psutil with 0.1s interval usually works in Docker if /proc is mounted.
+                pass
+            except:
+                pass
+
+        # Final check to avoid reporting 0.0 if we're actually restricted
         if cpu == 0.0 and mem == 0.0:
             return jsonify({'error': 'Metrics unavailable in this environment'}), 200
             
@@ -376,6 +385,7 @@ def system_metrics():
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
+
 
 @app.route('/api/tasks/cancel/<int:task_id>', methods=['POST'])
 @login_required
