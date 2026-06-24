@@ -10,9 +10,7 @@ services:
       - .env
     volumes:
       - ./data:/data
-      - ./downloads:/downloads
       - ./app:/app
-      - ./logs:/logs
     devices:
       - /dev/dri:/dev/dri
     restart: unless-stopped
