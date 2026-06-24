@@ -254,8 +254,8 @@
         .task-status { font-size: 0.8rem; color: var(--text-dim); }
         .download-link { background: var(--success); color: white; text-decoration: none; padding: 6px 12px; border-radius: 4px; font-size: 0.8rem; font-weight: bold; }
 
-        .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 15px; }
-        .fav-card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: flex-start; gap: 20px; cursor: pointer; transition: 0.2s; position: relative; }
+        .favorites-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(450px, 1fr)); gap: 20px; max-width: 1600px; margin: 0 auto; }
+        .fav-card { background: var(--card-bg); padding: 20px; border-radius: 12px; border: 1px solid var(--border); display: flex; align-items: flex-start; gap: 20px; cursor: pointer; transition: 0.2s; position: relative; min-width: 400px; }
         .fav-card:hover { background: #2a2a2a; border-color: var(--primary); transform: translateY(-2px); }
         
         .library-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
