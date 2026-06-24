@@ -67,6 +67,17 @@ def bootstrap_admin():
             db.session.add(admin_user)
             db.session.commit()
 
+        # Startup Cleanup: Mark all hanging tasks from previous session as error
+        hanging_tasks = DownloadTask.query.filter(
+            DownloadTask.status.in_(['pending', 'downloading', 'processing'])
+        ).all()
+        if hanging_tasks:
+            app.logger.info(f"Cleaning up {len(hanging_tasks)} hanging tasks from previous session...")
+            for task in hanging_tasks:
+                task.status = 'error'
+                task.error_log = 'Session restarted - task invalidated'
+            db.session.commit()
+
 def handle_shutdown(signum, frame):
     logging.info(f"Received signal {signum}, shutting down gracefully...")
     shutdown_all_tasks()

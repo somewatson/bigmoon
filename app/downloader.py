@@ -237,18 +237,24 @@ def start_compress_async(input_filename, preset, task_id, user_id, codec='H.264'
     return thread
 
 def cancel_task(task_id):
-    """Kills the process associated with the task if it exists."""
+    """Kills the process associated with the task if it exists. 
+    Returns True if the task was successfully cancelled or was already dead.
+    """
     process = active_processes.get(task_id)
     if process:
         try:
             process.terminate()
             # Give it a moment to terminate, then kill if still alive
             try:
-                process.wait(timeout=5)
+                process.wait(timeout=2)
             except subprocess.TimeoutExpired:
                 process.kill()
+            active_processes.pop(task_id, None)
             return True
         except Exception as e:
             print(f"Error canceling task {task_id}: {e}")
             return False
-    return False
+    
+    # If no active process is found, we still return True to allow 
+    # the database state to be updated (cleaning up hanging tasks).
+    return True
