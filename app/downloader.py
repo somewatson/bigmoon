@@ -196,7 +196,9 @@ def download_vod(url, video_id, task_id):
 def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
     input_path = os.path.join(DOWNLOADS_DIR, input_filename)
-    output_filename = f"compressed_{codec}_{preset}_{input_filename}"
+    # Use os.path.basename to ensure we only have the filename, not the full path
+    base_input_filename = os.path.basename(input_filename)
+    output_filename = f"compressed_{codec}_{preset}_{base_input_filename}"
     output_path = os.path.join(DOWNLOADS_DIR, output_filename)
     
     # Get total duration for progress calculation

@@ -826,7 +826,7 @@ def list_library():
         return jsonify({'error': f'Could not access downloads directory: {str(e)}'}), 500
     
     # Filter out temp files and hidden files
-    actual_files = [f for f in all_files if not (f.endswith('.temp.mp4') or f.endswith('.temp') or f.startswith('.'))]
+    actual_files = [f for f in all_files if not (f.endswith(('.temp.mp4', '.temp', '.part', '.ytdl')) or f.startswith('.'))]
     
     files_data = []
     for filename in actual_files:
