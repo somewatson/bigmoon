@@ -336,10 +336,10 @@ def cancel_task(task_id):
     Returns True if the task was successfully cancelled or was already dead.
     """
     process = active_processes.get(task_id)
+    
+    # 1. Kill by process group if available
     if process:
         try:
-            # Use a process group to kill all child processes (like ffmpeg)
-            # This requires the process to have been started with start_new_session=True
             try:
                 os.killpg(os.getpgid(process.pid), signal.SIGTERM)
             except ProcessLookupError:
@@ -355,9 +355,30 @@ def cancel_task(task_id):
                 except Exception:
                     process.kill()
             active_processes.pop(task_id, None)
-            return True
         except Exception as e:
-            print(f"Error canceling task {task_id}: {e}")
-            return False
+            print(f"Error canceling process group for task {task_id}: {e}")
+
+    # 2. Deep Cleanup: Find any orphaned ffmpeg processes associated with this task
+    # We look for ffmpeg processes that have the task's output file in their command line
+    try:
+        import psutil
+        # Get the filename from DB to find the process
+        from main import app
+        from models import DownloadTask, db
+        with app.app_context():
+            task = DownloadTask.query.get(task_id)
+            if task and task.filename:
+                target_file = task.filename
+                for proc in psutil.process_iter(['pid', 'name', 'cmdline']):
+                    try:
+                        if proc.info['name'] and 'ffmpeg' in proc.info['name'].lower():
+                            cmdline = proc.info['cmdline']
+                            if cmdline and any(target_file in arg for arg in cmdline):
+                                print(f"Killing orphaned ffmpeg process {proc.info['pid']} for task {task_id}")
+                                proc.kill()
+                    except (psutil.NoSuchProcess, psutil.AccessDenied, psutil.ZombieProcess):
+                        continue
+    except Exception as e:
+        print(f"Deep cleanup failed for task {task_id}: {e}")
     
     return True
