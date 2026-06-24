@@ -8,6 +8,11 @@
         :root { --primary: #9146ff; --primary-hover: #772ce8; --bg: #121212; --card-bg: #1e1e1e; --text: #ffffff; --text-dim: #aaa; --success: #00c853; --error: #ff4d4d; --border: #333; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; display: flex; height: 100vh; overflow: hidden; }
         
+        /* Connection Status Indicator */
+        #connection-status { position: fixed; top: 10px; right: 10px; font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; z-index: 1000; transition: 0.3s; opacity: 0.6; }
+        .status-online { background: var(--success); color: white; }
+        .status-offline { background: var(--error); color: white; }
+        
         /* Sidebar */
         .sidebar { width: 260px; background: #0a0a0a; display: flex; flex-direction: column; padding: 20px; border-right: 1px solid var(--border); transition: width 0.3s ease; position: relative; }
         .sidebar.collapsed { width: 80px; padding: 20px 10px; }
@@ -125,6 +130,7 @@
     </div>
 
     <div class="main-content">
+        <div id="connection-status" class="status-online">Connected</div>
         <div id="toast-container"></div>
         
         <!-- Preview Modal -->
@@ -191,6 +197,42 @@
     <script>
         // Define functions globally to ensure they are accessible from inline onclick attributes
         window.currentTab = 'search';
+        let apiRetryCount = 0;
+
+        async function apiFetch(url, options = {}) {
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+
+            options.signal = controller.signal;
+
+            try {
+                const response = await fetch(url, options);
+                clearTimeout(timeoutId);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                apiRetryCount = 0;
+                updateConnectionStatus(true);
+                return response;
+            } catch (e) {
+                clearTimeout(timeoutId);
+                updateConnectionStatus(false);
+                throw e;
+            }
+        }
+
+        function updateConnectionStatus(online) {
+            const status = document.getElementById('connection-status');
+            if (online) {
+                status.textContent = 'Connected';
+                status.className = 'status-online';
+            } else {
+                status.textContent = 'Disconnected';
+                status.className = 'status-offline';
+            }
+        }
 
         window.showTab = function(tabId) {
             document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
@@ -216,17 +258,18 @@
             const grid = document.getElementById('videoGrid');
             const channelInfo = document.getElementById('channelInfo');
             if (!channel) return;
-
+    
             grid.innerHTML = '';
             channelInfo.innerHTML = '<p>Searching Twitch...</p>';
             try {
-                const response = await fetch('/api/videos', {
+                const response = await apiFetch('/api/videos', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ channel })
                 });
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
+
 
                 channelInfo.innerHTML = `
                     <div class="channel-card">
@@ -278,23 +321,31 @@
         }
 
         async function toggleFavorite(channel) {
-            await fetch('/api/favorites', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ channel })
-            });
-            if(window.currentTab === 'favorites') loadFavorites();
-            searchVideos();
+            try {
+                await apiFetch('/api/favorites', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel })
+                });
+                if(window.currentTab === 'favorites') loadFavorites();
+                searchVideos();
+            } catch (e) {
+                showToast('Connection error. Please try again.', 'error');
+            }
         }
 
         async function downloadVideo(url, id) {
-            const response = await fetch('/api/download', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ url, id })
-            });
-            const data = await response.json();
-            if(data.taskId) window.showTab('tasks');
+            try {
+                const response = await apiFetch('/api/download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, id })
+                });
+                const data = await response.json();
+                if(data.taskId) window.showTab('tasks');
+            } catch (e) {
+                showToast('Connection error. Please try again.', 'error');
+            }
         }
 
         function previewVideo(videoId) {
@@ -328,44 +379,49 @@
         }
 
         async function loadLibrary() {
-            const response = await fetch('/api/library');
-            const data = await response.json();
-            const list = document.getElementById('libraryList');
-            list.innerHTML = '';
-            
-            if(data.files.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">📚</div>
-                        <h3>Your library is empty</h3>
-                        <p>All your downloaded and compressed VODs will appear here.</p>
-                    </div>
-                `;
-                return;
-            }
-    
-            data.files.forEach(file => {
-                const item = document.createElement('div');
-                item.className = 'file-item';
+            try {
+                const response = await apiFetch('/api/library');
+                const data = await response.json();
+                const list = document.getElementById('libraryList');
+                list.innerHTML = '';
                 
-                let sizeInfo = `Size: ${file.size}`;
-                if (file.savings) {
-                    sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
-                }
-                
-                item.innerHTML = `
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
-                        <div class="task-info">
-                            <h4 style="margin: 0; font-size: 0.9rem;">${file.filename}</h4>
-                            <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0;">Type: ${file.type} | ${sizeInfo} | Created: ${new Date(file.created_at).toLocaleString()}</p>
+                if(data.files.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">📚</div>
+                            <h3>Your library is empty</h3>
+                            <p>All your downloaded and compressed VODs will appear here.</p>
                         </div>
-                    </div>
-                    <a class="download-link" href="/downloads/${file.filename}">Download to PC</a>
-                `;
-                list.appendChild(item);
-            });
+                    `;
+                    return;
+                }
+            
+                data.files.forEach(file => {
+                    const item = document.createElement('div');
+                    item.className = 'file-item';
+                    
+                    let sizeInfo = `Size: ${file.size}`;
+                    if (file.savings) {
+                        sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
+                    }
+                    
+                    item.innerHTML = `
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
+                            <div class="task-info">
+                                <h4 style="margin: 0; font-size: 0.9rem;">${file.filename}</h4>
+                                <p style="font-size: 0.8rem; color: var(--text-dim); margin: 0;">Type: ${file.type} | ${sizeInfo} | Created: ${new Date(file.created_at).toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <a class="download-link" href="/downloads/${file.filename}">Download to PC</a>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (e) {
+                console.error('Library load failed:', e);
+            }
         }
+
 
         async function loadFavorites() {
             const response = await fetch('/api/favorites');
@@ -570,77 +626,82 @@
         }
 
         async function loadTasks() {
-            const response = await fetch('/api/tasks');
-            const data = await response.json();
-            const list = document.getElementById('taskList');
-            
-            // Toast notification logic: detect status changes
-            if (window.lastTaskStatuses) {
-                data.tasks.forEach(task => {
-                    const prevStatus = window.lastTaskStatuses[task.id];
-                    if (prevStatus && prevStatus !== task.status) {
-                        if (task.status === 'completed') {
-                            showToast(`Task completed: ${task.filename || 'VOD'}`, 'success');
-                        } else if (task.status === 'error') {
-                            showToast(`Task failed: ${task.filename || 'VOD'}`, 'error');
-                        }
-                    }
-                });
-            }
-            window.lastTaskStatuses = {};
-            data.tasks.forEach(task => {
-                window.lastTaskStatuses[task.id] = task.status;
-            });
-
-            if (data.tasks.length === 0) {
-                list.innerHTML = `
-                    <div class="empty-state">
-                        <div class="icon">⏳</div>
-                        <h3>No active tasks</h3>
-                        <p>Your download and compression queue is currently empty.</p>
-                    </div>
-                `;
-                return;
-            }
-
-            list.innerHTML = '';
-            data.tasks.forEach(task => {
-                const item = document.createElement('div');
-                item.className = 'task-item';
+            try {
+                const response = await apiFetch('/api/tasks');
+                const data = await response.json();
+                const list = document.getElementById('taskList');
                 
-                let actionHtml = '';
-                if(task.status === 'completed') {
-                    const fileLink = task.filename ? `<a class="download-link" href="/downloads/${task.filename}">Download File</a>` : `<span style="color: var(--text-dim); font-size: 0.8rem;">File not ready...</span>`;
-                    actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--success); font-size: 1.2rem;">✅</span>${fileLink}</div>`;
-                } else if(task.status === 'error') {
-                    actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--error); font-size: 1.2rem;">❌</span><span style="color: var(--error); font-size: 0.8rem;">Failed</span></div>`;
-                } else {
-                    actionHtml = `
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <span class="task-status">${task.status}...</span>
-                            <button onclick="cancelTask(${task.id})" style="background: #444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.7rem; padding: 2px 6px;">Cancel</button>
-                        </div>
-                    `;
+                // Toast notification logic: detect status changes
+                if (window.lastTaskStatuses) {
+                    data.tasks.forEach(task => {
+                        const prevStatus = window.lastTaskStatuses[task.id];
+                        if (prevStatus && prevStatus !== task.status) {
+                            if (task.status === 'completed') {
+                                showToast(`Task completed: ${task.filename || 'VOD'}`, 'success');
+                            } else if (task.status === 'error') {
+                                showToast(`Task failed: ${task.filename || 'VOD'}`, 'error');
+                            }
+                        }
+                    });
                 }
-
-                    item.innerHTML = `
-                        <div class="task-info">
-                            <div style="flex: 1;">
-                                <h4>${task.filename || 'VOD ' + (task.video_id || '')} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
-                                <div class="progress-container">
-                                    <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%"></div>
-                                    <span class="progress-text">${task.progress}%</span>
-                                </div>
-                                ${task.status === 'processing' ? `<button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;">View Logs</button>` : ''}
-                            </div>
+                window.lastTaskStatuses = {};
+                data.tasks.forEach(task => {
+                    window.lastTaskStatuses[task.id] = task.status;
+                });
+            
+                if (data.tasks.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">⏳</div>
+                            <h3>No active tasks</h3>
+                            <p>Your download and compression queue is currently empty.</p>
                         </div>
-                        ${actionHtml}
-                        ${task.status === 'error' ? `<span style="color: var(--error); cursor: help;" title="${task.error || 'Unknown error'}">⚠️</span>` : ''}
                     `;
-
-                list.appendChild(item);
-            });
+                    return;
+                }
+            
+                list.innerHTML = '';
+                data.tasks.forEach(task => {
+                    const item = document.createElement('div');
+                    item.className = 'task-item';
+                    
+                    let actionHtml = '';
+                    if(task.status === 'completed') {
+                        const fileLink = task.filename ? `<a class="download-link" href="/downloads/${task.filename}">Download File</a>` : `<span style="color: var(--text-dim); font-size: 0.8rem;">File not ready...</span>`;
+                        actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--success); font-size: 1.2rem;">✅</span>${fileLink}</div>`;
+                    } else if(task.status === 'error') {
+                        actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--error); font-size: 1.2rem;">❌</span><span style="color: var(--error); font-size: 0.8rem;">Failed</span></div>`;
+                    } else {
+                        actionHtml = `
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <span class="task-status">${task.status}...</span>
+                                <button onclick="cancelTask(${task.id})" style="background: #444; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.7rem; padding: 2px 6px;">Cancel</button>
+                            </div>
+                        `;
+                    }
+            
+                        item.innerHTML = `
+                            <div class="task-info">
+                                <div style="flex: 1;">
+                                    <h4>${task.filename || 'VOD ' + (task.video_id || '')} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
+                                    <div class="progress-container">
+                                        <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%"></div>
+                                        <span class="progress-text">${task.progress}%</span>
+                                    </div>
+                                    ${task.status === 'processing' ? `<button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;">View Logs</button>` : ''}
+                                </div>
+                            </div>
+                            ${actionHtml}
+                            ${task.status === 'error' ? `<span style="color: var(--error); cursor: help;" title="${task.error || 'Unknown error'}">⚠️</span>` : ''}
+                        `;
+            
+                    list.appendChild(item);
+                });
+            } catch (e) {
+                console.error('Task load failed:', e);
+            }
         }
+
 
         // Expose critical functions to window for inline HTML handlers
         window.searchVideos = searchVideos;

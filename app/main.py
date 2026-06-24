@@ -3,6 +3,7 @@ import logging
 import sys
 import argparse
 import signal
+import time
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
@@ -82,6 +83,13 @@ def handle_shutdown(signum, frame):
     logging.info(f"Received signal {signum}, shutting down gracefully...")
     shutdown_all_tasks()
     sys.exit(0)
+
+@app.before_request
+def add_asset_version():
+    # Add a global version to be used in templates for cache busting
+    # In a real production app, this could be a git commit hash or a version number
+    from flask import g
+    g.asset_version = int(time.time())
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
