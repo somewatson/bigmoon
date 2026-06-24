@@ -170,11 +170,11 @@ def download_vod(url, video_id, task_id):
                 cleanup_task_files(task_id)
         
         except Exception as e:
-        print(f"Error downloading {video_id}: {e}")
-        print(traceback.format_exc())
-        update_task_progress(task_id, 'error')
-        cleanup_task_files(task_id)
-    finally:
+            print(f"Error downloading {video_id}: {e}")
+            print(traceback.format_exc())
+            update_task_progress(task_id, 'error')
+            cleanup_task_files(task_id)
+        finally:
         active_processes.pop(task_id, None)
 
 
