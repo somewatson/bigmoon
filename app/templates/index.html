@@ -262,15 +262,15 @@
         .bulk-actions { display: none; gap: 12px; align-items: center; background: #1a1a1a; padding: 8px 16px; border-radius: 6px; border: 1px solid var(--primary); }
         .bulk-actions.active { display: flex; }
         
-        .compress-section { display: flex; flex-direction: column; gap: 12px; max-width: 1000px; }
+        .compress-section { display: flex; flex-direction: column; gap: 12px; max-width: 1200px; }
         .file-item { 
             background: var(--card-bg); 
-            padding: 12px; 
+            padding: 15px; 
             border-radius: 8px; 
             border: 1px solid var(--border); 
             display: flex; 
             align-items: center; 
-            gap: 15px; 
+            gap: 20px; 
             transition: 0.2s;
             width: 100%;
             box-sizing: border-box;
@@ -1456,9 +1456,12 @@
                     <div class="checkbox-wrapper">
                         <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file)}" onchange="handleFileSelection(this)">
                     </div>
-                    <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">
+                    <img src="${thumbUrl}" class="thumb-preview" style="width: 120px; height: 68px;" alt="preview" onerror="this.classList.add('error')">
                     <div class="file-details">
                         <h4 class="file-name">${file}</h4>
+                        <div class="file-meta">
+                             <span class="meta-item">Ready for compression</span>
+                        </div>
                     </div>
                     <div class="compress-controls">
                         <select id="codec-${encodeURIComponent(file)}">
