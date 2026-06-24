@@ -922,41 +922,43 @@
                     item.innerHTML = `
                         <div class="automation-header">
                             <h4>${c.channel_name}</h4>
-                            <button onclick="deleteMonitored(${c.id})" style="background: var(--error); padding: 5px 10px; font-size: 0.7rem;" data-tooltip="Stop monitoring this channel">Remove</button>
-                        </div>
-                        <div class="automation-settings">
-                            <div class="setting-item">
-                                <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="updateMonitored(${c.id}, {enabled: this.checked})">
-                                <span>Enabled</span>
-                            </div>
-                            <div class="setting-item">
-                                <input type="checkbox" ${c.auto_compress ? 'checked' : ''} onchange="updateMonitored(${c.id}, {auto_compress: this.checked})">
-                                <span>Auto-Compress</span>
-                            </div>
-                            <div class="setting-item" style="grid-column: span 2;">
-                                <label>Presets:</label>
-                                <input type="text" value="${c.compression_presets}" placeholder="e.g. balanced,high" 
-                                       onblur="updateMonitored(${c.id}, {compression_presets: this.value})" style="flex: 1; padding: 4px;">
-                            </div>
-                            <div class="setting-item">
-                                <label>Codec:</label>
-                                <select onchange="updateMonitored(${c.id}, {target_codec: this.value})" style="flex: 1;">
-                                    <option value="AV1" ${c.target_codec === 'AV1' ? 'selected' : ''}>AV1</option>
-                                    <option value="H.264" ${c.target_codec === 'H.264' ? 'selected' : ''}>H.264</option>
-                                    <option value="H.265" ${c.target_codec === 'H.265' ? 'selected' : ''}>H.265</option>
-                                </select>
-                            </div>
-                            <div class="setting-item">
-                                <input type="checkbox" ${c.delete_original ? 'checked' : ''} onchange="updateMonitored(${c.id}, {delete_original: this.checked})">
-                                <span>Delete Original</span>
-                            </div>
-                        </div>
-                    `;
-                    list.appendChild(item);
-                });
-            } catch (e) {
-                console.error('Failed to load monitored channels:', e);
-            }
+                                 <button onclick="deleteMonitored(${c.id})" style="background: var(--error); padding: 5px 10px; font-size: 0.7rem;" data-tooltip="Stop monitoring this channel">Remove</button>
+                                 </div>
+                                 <div class="automation-settings">
+                                     <div class="setting-item">
+                                         <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="updateMonitored(${c.id}, {enabled: this.checked})">
+                                         <span>Enabled</span>
+                                     </div>
+                                     <div class="setting-item">
+                                         <input type="checkbox" ${c.auto_compress ? 'checked' : ''} onchange="updateMonitored(${c.id}, {auto_compress: this.checked})">
+                                         <span>Auto-Compress</span>
+                                     </div>
+                                     <div class="setting-item" style="grid-column: span 2;">
+                                         <label>Presets:</label>
+                                         <input type="text" value="${c.compression_presets}" placeholder="e.g. balanced,high" 
+                                                onblur="updateMonitored(${c.id}, {compression_presets: this.value})" style="flex: 1; padding: 4px;">
+                                     </div>
+                                     <div class="setting-item">
+                                         <label>Codec:</label>
+                                         <select onchange="updateMonitored(${c.id}, {target_codec: this.value})" style="flex: 1;">
+                                             <option value="AV1" ${c.target_codec === 'AV1' ? 'selected' : ''}>AV1</option>
+                                             <option value="H.264" ${c.target_codec === 'H.264' ? 'selected' : ''}>H.264</option>
+                                             <option value="H.265" ${c.target_codec === 'H.265' ? 'selected' : ''}>H.265</option>
+                                         </select>
+                                     </div>
+                                     <div class="setting-item">
+                                         <input type="checkbox" ${c.delete_original ? 'checked' : ''} onchange="updateMonitored(${c.id}, {delete_original: this.checked})">
+                                         <span>Delete Original</span>
+                                     </div>
+                                 </div>
+                             `;
+                             list.appendChild(item);
+                         });
+                     } catch (e) {
+                         console.error('Failed to load monitored channels:', e);
+                     }
+                 }
+
         }
 
         async function addMonitoredChannel() {
