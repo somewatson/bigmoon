@@ -526,9 +526,10 @@
             </div>
         </div>
         
-        <!-- Search Tab -->
         <div id="tab-search" class="tab-content active">
             <div class="sticky-header">
+                <h2>Search & Download</h2>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">Find and archive Twitch VODs. Enter a channel name to browse available videos. Click 'Download' to add a video to your processing queue.</p>
                 <form class="search-section" onsubmit="event.preventDefault(); searchVideos();">
                     <input type="text" id="channelInput" placeholder="Enter Twitch channel name...">
                     <button type="submit">Search</button>
@@ -538,9 +539,11 @@
             <div id="videoGrid" class="video-grid"></div>
         </div>
 
+
         <!-- Favorites Tab -->
         <div id="tab-favorites" class="tab-content">
             <h2>Favorite Channels</h2>
+            <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">Your curated list of preferred streamers for instant access. Click any channel card to immediately search for their latest available content.</p>
             <div id="favoritesGrid" class="favorites-grid"></div>
         </div>
         
@@ -554,6 +557,7 @@
                         <button onclick="addMonitoredChannel()">Add Channel</button>
                     </div>
                 </div>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">Set up automated monitoring for your favorite channels. Big Moon will detect new VODs and automatically chain them through your configured download and compression pipeline.</p>
             </div>
             
             <div id="favAutomationSection" style="display: block; margin-bottom: 30px;">
@@ -562,8 +566,7 @@
                 </h3>
                 <div id="favAutomationGrid" class="favorites-grid"></div>
             </div>
-
-            <p style="color: var(--text-dim); margin-bottom: 20px;">Automatically monitor channels and chain downloads to compressions.</p>
+            
             <div id="automationList" class="task-list"></div>
         </div>
 
@@ -613,10 +616,9 @@
             <div id="libraryListCompressed" class="task-list"></div>
         </div>
 
-        <!-- Compress Tab -->
         <div id="tab-compress" class="tab-content">
             <h2>Compress Existing VODs</h2>
-            <p style="color: var(--text-dim); margin-bottom: 20px;">Process files using Intel QuickSync hardware acceleration.</p>
+            <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">Optimize your storage using Intel QuickSync (QSV) hardware acceleration. Select a file, choose your desired codec and preset, and start the compression process to save space without sacrificing significant quality.</p>
             <div id="fileList" class="compress-section"></div>
         </div>
 
@@ -625,9 +627,12 @@
             <div class="sticky-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2>Task Queue</h2>
-                                <button onclick="clearFailedTasks()" style="background: var(--error); font-size: 0.8rem;" data-tooltip="Remove all failed or pending tasks">Clear Incomplete</button>
-
+                    <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">Real-time monitoring of your download and encoding pipeline. Track progress, view detailed logs for troubleshooting, and cancel tasks if necessary.</p>
+                    <button onclick="clearFailedTasks()" style="background: var(--error); font-size: 0.8rem;" data-tooltip="Remove all failed or pending tasks">Clear Incomplete</button>
                 </div>
+            </div>
+            <div id="taskList" class="task-list"></div>
+        </div>
             </div>
             <div id="taskList" class="task-list"></div>
         </div>
