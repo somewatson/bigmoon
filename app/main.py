@@ -581,8 +581,10 @@ def manage_favorites():
             for i in range(0, len(names), chunk_size):
                 chunk = names[i:i + chunk_size]
                 try:
+                    # Twitch API requires multiple login parameters: login=foo&login=bar
+                    login_params = '&'.join([f'login={name}' for name in chunk])
                     user_res = requests.get(
-                        f"https://api.twitch.tv/helix/users?login={','.join(chunk)}", 
+                        f"https://api.twitch.tv/helix/users?{login_params}", 
                         headers=headers,
                         timeout=10
                     )
