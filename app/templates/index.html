@@ -234,7 +234,7 @@
 
     <script>
         // Define functions globally to ensure they are accessible from inline onclick attributes
-        window.currentTab = 'search';
+        window.currentTab = localStorage.getItem('bigmoon_current_tab') || 'search';
         let apiRetryCount = 0;
 
         async function apiFetch(url, options = {}) {
@@ -284,6 +284,7 @@
                 nav.classList.add('active');
             }
             window.currentTab = tabId;
+            localStorage.setItem('bigmoon_current_tab', tabId);
 
             if(tabId === 'favorites') loadFavorites();
             if(tabId === 'library') loadLibrary();
@@ -894,6 +895,10 @@
         window.clearFailedTasks = clearFailedTasks;
         window.cancelTask = cancelTask;
         window.toggleSidebar = toggleSidebar;
+
+        // Initial tab load
+        const savedTab = localStorage.getItem('bigmoon_current_tab') || 'search';
+        showTab(savedTab);
 
         // Polling for tasks
         setInterval(() => {
