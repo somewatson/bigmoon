@@ -72,10 +72,6 @@ def handle_shutdown(signum, frame):
     shutdown_all_tasks()
     sys.exit(0)
 
-# Register signal handlers for SIGTERM (Docker stop) and SIGINT (Ctrl+C)
-signal.signal(signal.SIGTERM, handle_shutdown)
-signal.signal(signal.SIGINT, handle_shutdown)
-
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -510,4 +506,7 @@ def download_file(filename):
 
 if __name__ == '__main__':
     bootstrap_admin()
+    # Register signal handlers for SIGTERM (Docker stop) and SIGINT (Ctrl+C)
+    signal.signal(signal.SIGTERM, handle_shutdown)
+    signal.signal(signal.SIGINT, handle_shutdown)
     app.run(host='0.0.0.0', port=5000)
