@@ -199,6 +199,61 @@
         
         .compress-controls { display: flex; gap: 10px; align-items: center; }
         select { padding: 6px; border-radius: 4px; background: #121212; color: white; border: 1px solid var(--border); font-size: 0.85rem; }
+
+        /* Automation Menu Styles */
+        .automation-card {
+            background: var(--card-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: 0.2s;
+        }
+        .automation-card:hover { border-color: var(--primary); }
+        .automation-header { display: flex; justify-content: space-between; align-items: center; }
+        .automation-header h4 { margin: 0; font-size: 1.1rem; }
+        .automation-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; color: var(--text-dim); }
+        .setting-item { display: flex; align-items: center; gap: 8px; }
+        .setting-item input { width: auto; }
+
+        /* Tooltip System */
+        [data-tooltip] { position: relative; cursor: pointer; }
+        [data-tooltip]::after {
+            content: attr(data-tooltip);
+            position: absolute;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%) translateY(10px);
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            white-space: nowrap;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.2s ease;
+            z-index: 1000;
+            border: 1px solid var(--border);
+            pointer-events: none;
+        }
+        [data-tooltip]:hover::after {
+            opacity: 1;
+            visibility: visible;
+            transform: translateX(-50%) translateY(0);
+        }
+        .compress-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; align-items: center; justify-content: center; }
+        .compress-modal.active { display: flex; }
+        .compress-modal-content { background: var(--card-bg); padding: 25px; border-radius: 8px; width: 400px; border: 1px solid var(--border); display: flex; flex-direction: column; gap: 20px; }
+        .compress-modal-content h3 { margin: 0; font-size: 1.2rem; }
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-group label { font-size: 0.9rem; color: var(--text-dim); }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px; }
+        .btn-secondary { background: #444; color: white; border: none; border-radius: 6px; cursor: pointer; padding: 10px 20px; font-weight: bold; transition: 0.2s; }
+        .btn-secondary:hover { background: #555; }
     </style>
 </head>
 <body>
@@ -209,9 +264,11 @@
             </div>
             <a class="nav-item active" onclick="showTab('search')" id="nav-search"><span>🔍</span> <span>Search & Download</span></a>
 
-        <a class="nav-item" onclick="showTab('favorites')" id="nav-favorites"><span>❤️</span> <span>Favorites</span></a>
-        <a class="nav-item" onclick="showTab('library')" id="nav-library"><span>📚</span> <span>My Library</span></a>
-        <a class="nav-item" onclick="showTab('compress')" id="nav-compress"><span>⚡</span> <span>Compress (QSV)</span></a>
+            <a class="nav-item" onclick="showTab('favorites')" id="nav-favorites"><span>❤️</span> <span>Favorites</span></a>
+            <a class="nav-item" onclick="showTab('automation')" id="nav-automation"><span>🤖</span> <span>Auto-Download</span></a>
+            <a class="nav-item" onclick="showTab('library')" id="nav-library"><span>📚</span> <span>My Library</span></a>
+            <a class="nav-item" onclick="showTab('compress')" id="nav-compress"><span>⚡</span> <span>Compress (HW)</span></a>
+
         <a class="nav-item" onclick="showTab('tasks')" id="nav-tasks"><span>⏳</span> <span>Active Tasks</span></a>
         <a class="nav-item" href="{{ url_for('admin_dashboard') }}" id="nav-admin" style="display: {% if current_user.role == 'admin' %}flex{% else %}none{% endif %};"><span>🛠️</span> <span>Admin</span></a>
         <a class="nav-item logout-btn" href="{{ url_for('logout') }}"><span>🚪</span> <span>Logout</span></a>
@@ -250,13 +307,46 @@
                             </div>
                         </div>
                         <div style="display: flex; gap: 10px;">
-                            <button onclick="copyLogsToClipboard()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy Logs</button>
-                            <button onclick="refreshLogs()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh</button>
-                            <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Scroll to Bottom</button>
+                                <button onclick="copyLogsToClipboard()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Copy logs to clipboard">Copy Logs</button>
+                                <button onclick="refreshLogs()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Refresh logs from server">Refresh</button>
+                                <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Jump to end of logs">Scroll to Bottom</button>
+
                         </div>
                     </div>
                 </div>
                 <div id="logContainer" class="log-container"></div>
+            </div>
+        </div>
+
+        <!-- Bulk Compress Modal -->
+        <div id="compressModal" class="compress-modal" onclick="closeCompressModal()">
+            <div class="compress-modal-content" onclick="event.stopPropagation()">
+                <h3>Batch Compress Files</h3>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Select settings for the selected files.</p>
+                
+                <div class="form-group">
+                    <label>Codec</label>
+                    <select id="bulkCodec">
+                        <option value="AV1" selected>AV1 (Best Compression)</option>
+                        <option value="H.264">H.264 (Max Compatibility)</option>
+                        <option value="H.265">H.265 (Balanced)</option>
+                        <option value="x264">x264 (Software)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label>Preset</label>
+                    <select id="bulkPreset">
+                        <option value="fast">Fast</option>
+                        <option value="balanced" selected>Balanced</option>
+                        <option value="high">High Quality</option>
+                    </select>
+                </div>
+                
+                <div class="modal-actions">
+                    <button class="btn-secondary" onclick="closeCompressModal()">Cancel</button>
+                    <button onclick="confirmBulkCompress()">Start Compression</button>
+                </div>
             </div>
         </div>
         
@@ -277,25 +367,60 @@
             <h2>Favorite Channels</h2>
             <div id="favoritesGrid" class="favorites-grid"></div>
         </div>
-
-        <!-- Library Tab -->
-        <div id="tab-library" class="tab-content">
+        
+        <!-- Automation Tab -->
+        <div id="tab-automation" class="tab-content">
             <div class="sticky-header">
-                <div class="library-header">
-                    <h2>My Library</h2>
-                    <div id="bulkActions" class="bulk-actions">
-                        <span id="selectedCount" style="font-size: 0.85rem; color: var(--text-dim);">0 selected</span>
-                        <button onclick="bulkCompress()" style="background: var(--primary); font-size: 0.8rem;">Batch Compress</button>
-                        <button onclick="bulkDelete()" style="background: var(--error); font-size: 0.8rem;">Delete Selected</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2>Auto-Download Pipeline</h2>
+                    <div style="display: flex; gap: 10px;">
+                        <input type="text" id="autoChannelInput" placeholder="Channel name..." style="max-width: 200px;">
+                        <button onclick="addMonitoredChannel()">Add Channel</button>
                     </div>
                 </div>
             </div>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">Automatically monitor channels and chain downloads to compressions.</p>
+            <div id="automationList" class="task-list"></div>
+        </div>
+        
+        <!-- Library Tab -->
+
+        <div id="tab-library" class="tab-content">
+            <div class="sticky-header">
+                    <div class="library-header">
+                         <div style="display: flex; align-items: center; gap: 20px;">
+                             <h2>My Library</h2>
+                             <input type="text" id="librarySearch" placeholder="Filter library..." style="max-width: 300px; padding: 6px 12px; font-size: 0.9rem;" oninput="loadLibrary()">
+                             <select id="librarySort" style="padding: 6px; font-size: 0.9rem;" onchange="loadLibrary()">
+                                 <option value="name">Sort by Name</option>
+                                 <option value="date">Sort by Date</option>
+                                 <option value="size">Sort by Size</option>
+                             </select>
+                         </div>
+
+                        <div id="bulkActions" class="bulk-actions">
+                            <span id="selectedCount" style="font-size: 0.85rem; color: var(--text-dim);">0 selected</span>
+                                <button onclick="bulkCompress()" style="background: var(--primary); font-size: 0.8rem;" data-tooltip="Compress all selected VODs">Batch Compress</button>
+                                <button onclick="bulkDelete()" style="background: var(--error); font-size: 0.8rem;" data-tooltip="Permanently delete selected files">Delete Selected</button>
+
+                        </div>
+                    </div>
+
+            </div>
             <p style="color: var(--text-dim); margin-bottom: 20px;">All your completed downloads.</p>
             
-            <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px;">Original Downloads</h3>
+            <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; display: flex; align-items: center; gap: 10px;">
+                Original Downloads
+                <input type="checkbox" id="selectAllOriginals" onchange="toggleAllFiles(this, 'libraryListOriginals')" style="width: auto; height: auto; margin: 0;">
+                <label for="selectAllOriginals" style="font-size: 0.8rem; color: var(--text-dim); cursor: pointer;">Select All</label>
+            </h3>
             <div id="libraryListOriginals" class="task-list" style="margin-bottom: 40px;"></div>
             
-            <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--success); padding-left: 10px;">Compressed Versions</h3>
+            <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--success); padding-left: 10px; display: flex; align-items: center; gap: 10px;">
+                Compressed Versions
+                <input type="checkbox" id="selectAllCompressed" onchange="toggleAllFiles(this, 'libraryListCompressed')" style="width: auto; height: auto; margin: 0;">
+                <label for="selectAllCompressed" style="font-size: 0.8rem; color: var(--text-dim); cursor: pointer;">Select All</label>
+            </h3>
             <div id="libraryListCompressed" class="task-list"></div>
         </div>
 
@@ -311,7 +436,8 @@
             <div class="sticky-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2>Task Queue</h2>
-                    <button onclick="clearFailedTasks()" style="background: var(--error); font-size: 0.8rem;">Clear Incomplete</button>
+                                <button onclick="clearFailedTasks()" style="background: var(--error); font-size: 0.8rem;" data-tooltip="Remove all failed or pending tasks">Clear Incomplete</button>
+
                 </div>
             </div>
             <div id="taskList" class="task-list"></div>
@@ -373,6 +499,7 @@
             localStorage.setItem('bigmoon_current_tab', tabId);
     
             if(tabId === 'favorites') loadFavorites();
+            if(tabId === 'automation') loadMonitored();
             if(tabId === 'library') loadLibrary();
             if(tabId === 'compress') loadFiles();
             if(tabId === 'tasks') loadTasks();
@@ -399,8 +526,8 @@
                 });
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
-
-
+    
+    
                 channelInfo.innerHTML = `
                     <div class="channel-card">
                         <img src="https://api.dicebear.com/7.x/initials/svg?seed=${channel}" alt="avatar">
@@ -408,10 +535,10 @@
                             <h2>${channel}</h2>
                             <p style="color: var(--text-dim); margin: 0;">Twitch Channel</p>
                         </div>
-                        <button class="fav-btn" onclick="toggleFavorite('${channel}')">❤️</button>
+                        <button class="fav-btn" onclick="toggleFavorite('${channel}')" data-tooltip="Add to Favorites">❤️</button>
                     </div>
                 `;
-
+    
                 grid.innerHTML = '';
                 data.videos.forEach(video => {
                     const card = document.createElement('div');
@@ -420,9 +547,9 @@
                     const thumbUrl = video.thumbnail_url
                         .replace('%{width}', '1280')
                         .replace('%{height}', '720');
-
+    
                     const durationStr = video.duration || "Unknown";
-
+    
                     card.innerHTML = `
                         <img src="${thumbUrl}" alt="thumbnail">
                         <div class="duration-badge">${durationStr}</div>
@@ -430,9 +557,9 @@
                             <h3>${video.title}</h3>
                             <p>Created: ${new Date(video.created_at).toLocaleDateString()} | Duration: ${durationStr}</p>
                             <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                                 <button onclick="downloadVideo('${video.url}', '${video.id}')" style="flex: 1;">Download</button>
-                                 <button onclick="previewVideo('${video.id}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'">Preview</button>
-                                 <a href="${video.url}" target="_blank" style="text-align: center; display: flex; align-items: center; justify-content: center; background: #444; color: white; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'">View VOD</a>
+                                  <button onclick="downloadVideo('${video.url}', '${video.id}')" style="flex: 1;" data-tooltip="Download this VOD">Download</button>
+                                  <button onclick="previewVideo('${video.id}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>
+                                  <a href="${video.url}" target="_blank" style="text-align: center; display: flex; align-items: center; justify-content: center; background: #444; color: white; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Open on Twitch">View VOD</a>
                             </div>
                         </div>
                     `;
@@ -442,6 +569,7 @@
                 channelInfo.innerHTML = `<p style="color: var(--error)">${e.message}</p>`;
             }
         }
+
 
         // Simplified favorite check to avoid async in template string
         function isFavoriteSync(channel) {
@@ -662,63 +790,79 @@
             window.activeLogTaskId = null;
         }
 
-        async function loadLibrary() {
-            try {
-                const response = await apiFetch('/api/library');
-                const data = await response.json();
-                const list = document.getElementById('libraryList');
-                list.innerHTML = '';
-                
-                if(data.files.length === 0) {
-                    list.innerHTML = `
-                        <div class="empty-state">
-                            <div class="icon">📚</div>
-                            <h3>Your library is empty</h3>
-                            <p>All your downloaded and compressed VODs will appear here.</p>
-                        </div>
-                    `;
-                    return;
-                }
+    function toggleAllFiles(source, containerId) {
+        const container = document.getElementById(containerId);
+        const checkboxes = container.querySelectorAll('.file-checkbox');
+        checkboxes.forEach(cb => {
+            cb.checked = source.checked;
+            handleFileSelection(cb);
+        });
+    }
+        try {
+            const response = await apiFetch('/api/library');
+            const data = await response.json();
+            const listOriginals = document.getElementById('libraryListOriginals');
+            const listCompressed = document.getElementById('libraryListCompressed');
             
-                data.files.forEach(file => {
-                    const item = document.createElement('div');
-                    item.className = 'file-item';
-                    
-                    let sizeInfo = `Size: ${file.size}`;
-                    if (file.savings) {
-                        sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
-                    }
-                    
-                    const encoderBadge = file.encoder_type 
-                        ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
-                        : '';
-                    
-                    const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
-                    const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
-
-                    item.innerHTML = `
-                        <div class="checkbox-wrapper">
-                            <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
-                        </div>
-                        <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODB soapyIGhlaWdodD0iNDUiIHhtbG5zPSJodHRwOi8vd3d3CndCcy5vcmcvMjAwMC9zdmciIHN0eWxlPSJiYWNrZ3JvdW5kOiMzMzM7IGZpBGlsbDojNjY2OyI+PHRleHQgeD0iNTBfSIgeT0iMjUiIGZpbGwiI2YwZjBmMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxMCI+Vm9pZG88L3RleHQ+PC9zdmc+'">
-                        <div class="file-details">
-                            <h4 class="file-name">${file.filename}</h4>
-                            <div class="file-meta">
-                                <span class="meta-item">${sizeInfo}</span>
-                                <span class="meta-item">• Type: ${file.type}</span>
-                                <span class="meta-item">• ${createdDate}</span>
-                                ${encoderBadge}
-                            </div>
-                        </div>
-                        <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
-                    `;
-                    list.appendChild(item);
-                });
-
-            } catch (e) {
-                console.error('Library load failed:', e);
+            listOriginals.innerHTML = '';
+            listCompressed.innerHTML = '';
+            
+            if(data.files.length === 0) {
+                const emptyState = `
+                    <div class="empty-state">
+                        <div class="icon">📚</div>
+                        <h3>Your library is empty</h3>
+                        <p>All your downloaded and compressed VODs will appear here.</p>
+                    </div>
+                `;
+                listOriginals.innerHTML = emptyState;
+                return;
             }
+        
+            data.files.forEach(file => {
+                const item = document.createElement('div');
+                item.className = 'file-item';
+                
+                let sizeInfo = `Size: ${file.size}`;
+                if (file.savings) {
+                    sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
+                }
+                
+                const encoderBadge = file.encoder_type 
+                    ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
+                    : '';
+                
+                const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
+                const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
+    
+                item.innerHTML = `
+                    <div class="checkbox-wrapper">
+                        <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
+                    </div>
+                    <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNDUiIHhtbG5zPSJodHRwOi8vd3d3LndyMy5vcmcvMjAwMC9zdmciIHN0eWxlPSJiYWNrZ3JvdW5kOiMzMzM7IGZpbGw6IzY2NjsiPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjZmBmMGIwIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBkb2�pbmFudC1iYXNlbGluZT0iMTBweCIgZm9udC1zaXplPSIxMCI+Vm9pZG88L3RleHQ+PC9zdmc+'">
+                    <div class="file-details">
+                        <h4 class="file-name">${file.filename}</h4>
+                        <div class="file-meta">
+                            <span class="meta-item">${sizeInfo}</span>
+                            <span class="meta-item">• Type: ${file.type}</span>
+                            <span class="meta-item">• ${createdDate}</span>
+                            ${encoderBadge}
+                        </div>
+                    </div>
+                    <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
+                `;
+                
+                if (file.type === 'compress') {
+                    listCompressed.appendChild(item);
+                } else {
+                    listOriginals.appendChild(item);
+                }
+            });
+        
+        } catch (e) {
+            console.error('Library load failed:', e);
         }
+    }
 
 
         async function loadFavorites() {
@@ -737,13 +881,13 @@
                 `;
                 return;
             }
-
+            
             data.favorites.forEach(channel => {
                 const card = document.createElement('div');
                 card.className = 'fav-card';
                 card.innerHTML = `
                     <span>${channel}</span>
-                    <button onclick="removeFavorite('${channel}', event)">✕</button>
+                    <button onclick="removeFavorite('${channel}', event)" data-tooltip="Remove from Favorites">✕</button>
                 `;
                 card.onclick = () => {
                     document.getElementById('channelInput').value = channel;
@@ -753,6 +897,119 @@
                 grid.appendChild(card);
             });
         }
+
+        async function loadMonitored() {
+            try {
+                const response = await fetch('/api/monitored');
+                const data = await response.json();
+                const list = document.getElementById('automationList');
+                list.innerHTML = '';
+
+                if (data.channels.length === 0) {
+                    list.innerHTML = `
+                        <div class="empty-state">
+                            <div class="icon">🤖</div>
+                            <h3>No monitored channels</h3>
+                            <p>Add a channel to automatically download their new VODs.</p>
+                        </div>
+                    `;
+                    return;
+                }
+
+                data.channels.forEach(c => {
+                    const item = document.createElement('div');
+                    item.className = 'automation-card';
+                    item.innerHTML = `
+                        <div class="automation-header">
+                            <h4>${c.channel_name}</h4>
+                            <button onclick="deleteMonitored(${c.id})" style="background: var(--error); padding: 5px 10px; font-size: 0.7rem;" data-tooltip="Stop monitoring this channel">Remove</button>
+                        </div>
+                        <div class="automation-settings">
+                            <div class="setting-item">
+                                <input type="checkbox" ${c.enabled ? 'checked' : ''} onchange="updateMonitored(${c.id}, {enabled: this.checked})">
+                                <span>Enabled</span>
+                            </div>
+                            <div class="setting-item">
+                                <input type="checkbox" ${c.auto_compress ? 'checked' : ''} onchange="updateMonitored(${c.id}, {auto_compress: this.checked})">
+                                <span>Auto-Compress</span>
+                            </div>
+                            <div class="setting-item" style="grid-column: span 2;">
+                                <label>Presets:</label>
+                                <input type="text" value="${c.compression_presets}" placeholder="e.g. balanced,high" 
+                                       onblur="updateMonitored(${c.id}, {compression_presets: this.value})" style="flex: 1; padding: 4px;">
+                            </div>
+                            <div class="setting-item">
+                                <label>Codec:</label>
+                                <select onchange="updateMonitored(${c.id}, {target_codec: this.value})" style="flex: 1;">
+                                    <option value="AV1" ${c.target_codec === 'AV1' ? 'selected' : ''}>AV1</option>
+                                    <option value="H.264" ${c.target_codec === 'H.264' ? 'selected' : ''}>H.264</option>
+                                    <option value="H.265" ${c.target_codec === 'H.265' ? 'selected' : ''}>H.265</option>
+                                </select>
+                            </div>
+                            <div class="setting-item">
+                                <input type="checkbox" ${c.delete_original ? 'checked' : ''} onchange="updateMonitored(${c.id}, {delete_original: this.checked})">
+                                <span>Delete Original</span>
+                            </div>
+                        </div>
+                    `;
+                    list.appendChild(item);
+                });
+            } catch (e) {
+                console.error('Failed to load monitored channels:', e);
+            }
+        }
+
+        async function addMonitoredChannel() {
+            const input = document.getElementById('autoChannelInput');
+            const channel_name = input.value.trim();
+            if (!channel_name) return;
+
+            try {
+                const response = await fetch('/api/monitored', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ channel_name })
+                });
+                const data = await response.json();
+                if (data.error) {
+                    showToast(data.error, 'error');
+                } else {
+                    showToast(`Monitoring ${channel_name} started!`, 'success');
+                    input.value = '';
+                    loadMonitored();
+                }
+            } catch (e) {
+                showToast('Error adding channel', 'error');
+            }
+        }
+
+        async function updateMonitored(id, settings) {
+            try {
+                await fetch('/api/monitored', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id, ...settings })
+                });
+            } catch (e) {
+                showToast('Failed to update settings', 'error');
+            }
+        }
+
+        async function deleteMonitored(id) {
+            if (!confirm('Stop monitoring this channel?')) return;
+            try {
+                await fetch('/api/monitored', {
+                    method: 'DELETE',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id })
+                });
+                loadLMonitored();
+                loadMonitored();
+            } catch (e) {
+                showToast('Error removing channel', 'error');
+            }
+        }
+
 
         async function removeFavorite(channel, event) {
             event.stopPropagation();
@@ -801,12 +1058,27 @@
         }
 
         async function bulkCompress() {
+            document.getElementById('compressModal').classList.add('active');
+        }
+
+        function closeCompressModal() {
+            document.getElementById('compressModal').classList.remove('active');
+        }
+
+        async function confirmBulkCompress() {
             const selected = Array.from(document.querySelectorAll('.file-checkbox:checked'))
-                                   .map(cb => decodeURIComponent(cb.dataset.filename));
+                                    .map(cb => decodeURIComponent(cb.dataset.filename));
             
-            const codec = prompt('Enter codec (AV1, H.264, H.265, x264):', 'AV1') || 'AV1';
-            const preset = prompt('Enter preset (fast, balanced, high):', 'balanced') || 'balanced';
+            if (selected.length === 0) {
+                showToast('No files selected', 'error');
+                return;
+            }
+
+            const codec = document.getElementById('bulkCodec').value;
+            const preset = document.getElementById('bulkPreset').value;
             
+            closeCompressModal();
+
             try {
                 const response = await fetch('/api/library/bulk-compress', {
                     method: 'POST',
@@ -997,7 +1269,7 @@
                                         <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%"></div>
                                         <span class="progress-text">${task.progress}%</span>
                                     </div>
-                                    <button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;">View Logs</button>
+                                    <button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;" data-tooltip="View detailed processing logs">View Logs</button>
                                 </div>
                             </div>
                             ${actionHtml}

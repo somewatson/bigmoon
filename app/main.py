@@ -4,18 +4,20 @@ import sys
 import argparse
 import signal
 import time
+from datetime import datetime, timedelta
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash
 from dotenv import load_dotenv
 import requests
+from apscheduler.schedulers.background import BackgroundScheduler
 try:
     import psutil
 except ImportError:
     psutil = None
 
-from models import db, User, Favorite, DownloadTask
+from models import db, User, Favorite, DownloadTask, MonitoredChannel
 from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path
 
 
@@ -115,6 +117,14 @@ def bootstrap_admin():
         except Exception as e:
             db.session.rollback()
             app.logger.debug(f"Database migration note: {e}")
+
+        try:
+            db.session.execute(db.text("CREATE TABLE IF NOT EXISTS monitored_channel (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, channel_name TEXT NOT NULL, twitch_user_id TEXT, enabled BOOLEAN DEFAULT 1, auto_compress BOOLEAN DEFAULT 0, compression_presets TEXT DEFAULT '', target_codec TEXT DEFAULT 'AV1', delete_original BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES user(id))"))
+            db.session.commit()
+            app.logger.info("Migrated database: ensured monitored_channel table exists")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Failed to create monitored_channel table: {e}")
 
         if not User.query.filter_by(role='admin').first():
             admin_user = User(
@@ -329,8 +339,10 @@ def get_thumbnail(filename):
             '-vf', 'scale=160:-1', 
             thumb_path
         ]
-        subprocess.run(cmd, check=True, capture_output=True)
+        subprocess.run(cmd, check=True, capture_output=True, timeout=30)
         return send_from_directory(thumb_dir, thumb_filename)
+    except subprocess.TimeoutExpired:
+        return jsonify({'error': 'Thumbnail generation timed out'}), 504
     except Exception as e:
         return jsonify({'error': f'Thumbnail generation failed: {str(e)}'}), 500
 
@@ -412,6 +424,88 @@ def get_twitch_token():
     response.raise_for_status()
     return response.json()['access_token']
 
+def check_for_new_vods():
+    """Background task to check monitored channels for new VODs."""
+    with app.app_context():
+        logging.info("Checking for new VODs across monitored channels...")
+        try:
+            monitored_channels = MonitoredChannel.query.filter_by(enabled=True).all()
+            if not monitored_channels:
+                logging.info("No enabled monitored channels found.")
+                return
+
+            token = get_twitch_token()
+            headers = {
+                'Client-ID': os.getenv('TWITCH_CLIENT_ID'),
+                'Authorization': f'Bearer {token}'
+            }
+
+            for channel in monitored_channels:
+                logging.info(f"Checking channel: {channel.channel_name}")
+                
+                # 1. Get Twitch User ID if not already stored
+                user_id = channel.twitch_user_id
+                if not user_id:
+                    user_res = requests.get(f'https://api.twitch.tv/helix/users?login={channel.channel_name}', headers=headers)
+                    user_res.raise_for_status()
+                    user_data = user_res.json().get('data')
+                    if not user_data:
+                        logging.warning(f"Channel {channel.channel_name} not found on Twitch.")
+                        continue
+                    user_id = user_data[0]['id']
+                    channel.twitch_user_id = user_id
+                    db.session.commit()
+
+                # 2. Fetch latest VODs
+                vod_res = requests.get(f'https://api.twitch.tv/helix/videos?user_id={user_id}', headers=headers)
+                vod_res.raise_for_status()
+                videos = vod_res.json().get('data', [])
+
+                # 3. Filter and trigger downloads
+                now = datetime.utcnow()
+                twenty_four_hours_ago = now - timedelta(hours=24)
+                
+                for video in videos:
+                    video_id = video['id']
+                    created_at = datetime.strptime(video['created_at'], '%Y-%m-%dT%H:%M:%SZ')
+                    
+                    # Filter: Only if created within last 24h OR created after monitoring started
+                    is_recent = created_at >= twenty_four_hours_ago
+                    is_after_monitoring = created_at >= channel.created_at
+                    
+                    if not (is_recent or is_after_monitoring):
+                        continue
+
+                    # Filter: Duplicate check
+                    exists = DownloadTask.query.filter_by(video_id=video_id).first()
+                    if exists:
+                        continue
+
+                    logging.info(f"New VOD found for {channel.channel_name}: {video['title']} ({video_id})")
+                    
+                    # Trigger Download
+                    task = DownloadTask(
+                        user_id=channel.user_id, 
+                        video_id=video_id, 
+                        status='pending', 
+                        task_type='download'
+                    )
+                    db.session.add(task)
+                    db.session.commit()
+                    
+                    start_download_async(video['url'], video_id, task.id)
+
+            logging.info("Finished checking all monitored channels.")
+        except Exception as e:
+            logging.error(f"Error in background monitoring worker: {e}")
+
+def setup_scheduler():
+    scheduler = BackgroundScheduler()
+    # Poll every 30 minutes
+    scheduler.add_job(func=check_for_new_vods, trigger='interval', minutes=30)
+    scheduler.start()
+    return scheduler
+
 @app.route('/api/videos', methods=['POST'])
 @login_required
 def list_videos():
@@ -468,6 +562,80 @@ def manage_favorites():
     # GET all favorites
     favs = Favorite.query.filter_by(user_id=current_user.id).all()
     return jsonify({'favorites': [f.channel_name for f in favs]})
+
+@app.route('/api/monitored', methods=['GET', 'POST', 'PUT', 'DELETE'])
+@login_required
+def manage_monitored():
+    if request.method == 'GET':
+        channels = MonitoredChannel.query.filter_by(user_id=current_user.id).all()
+        return jsonify({
+            'channels': [{
+                'id': c.id,
+                'channel_name': c.channel_name,
+                'enabled': c.enabled,
+                'auto_compress': c.auto_compress,
+                'compression_presets': c.compression_presets,
+                'target_codec': c.target_codec,
+                'delete_original': c.delete_original
+            } for c in channels]
+        })
+
+    if request.method == 'POST':
+        data = request.json
+        channel_name = data.get('channel_name')
+        if not channel_name:
+            return jsonify({'error': 'Channel name is required'}), 400
+        
+        # Avoid duplicates for same user
+        if MonitoredChannel.query.filter_by(user_id=current_user.id, channel_name=channel_name).first():
+            return jsonify({'error': 'Channel already monitored'}), 400
+            
+        new_channel = MonitoredChannel(
+            user_id=current_user.id,
+            channel_name=channel_name,
+            enabled=data.get('enabled', True),
+            auto_compress=data.get('auto_compress', False),
+            compression_presets=data.get('compression_presets', ''),
+            target_codec=data.get('target_codec', 'AV1'),
+            delete_original=data.get('delete_original', False)
+        )
+        db.session.add(new_channel)
+        db.session.commit()
+        return jsonify({'message': 'Channel added to monitoring list', 'id': new_channel.id})
+
+    if request.method == 'PUT':
+        data = request.json
+        channel_id = data.get('id')
+        if not channel_id:
+            return jsonify({'error': 'Channel ID required'}), 400
+            
+        channel = MonitoredChannel.query.filter_by(id=channel_id, user_id=current_user.id).first()
+        if not channel:
+            return jsonify({'error': 'Channel not found'}), 404
+            
+        channel.enabled = data.get('enabled', channel.enabled)
+        channel.auto_compress = data.get('auto_compress', channel.auto_compress)
+        channel.compression_presets = data.get('compression_presets', channel.compression_presets)
+        channel.target_codec = data.get('target_codec', channel.target_codec)
+        channel.delete_original = data.get('delete_original', channel.delete_original)
+        db.session.commit()
+        return jsonify({'message': 'Monitoring settings updated'})
+
+    if request.method == 'DELETE':
+        data = request.json
+        channel_id = data.get('id')
+        if not channel_id:
+            return jsonify({'error': 'Channel ID required'}), 400
+            
+        channel = MonitoredChannel.query.filter_by(id=channel_id, user_id=current_user.id).first()
+        if not channel:
+            return jsonify({'error': 'Channel not found'}), 404
+            
+        db.session.delete(channel)
+        db.session.commit()
+        return jsonify({'message': 'Channel removed from monitoring list'})
+
+    return jsonify({'error': 'Method not allowed'}), 405
 
 def format_size(size_bytes):
     if size_bytes == 0: return "0B"
@@ -604,6 +772,7 @@ def list_files():
 def list_library():
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     try:
+        # The downloads folder is the absolute source of truth
         all_files = os.listdir(downloads_dir)
     except Exception as e:
         return jsonify({'error': f'Could not access downloads directory: {str(e)}'}), 500
@@ -613,27 +782,28 @@ def list_library():
     
     files_data = []
     for filename in actual_files:
-        # Find the most recent task associated with this filename
+        # Find the most recent task associated with this filename to determine ownership and metadata
         task = DownloadTask.query.filter_by(filename=filename).order_by(DownloadTask.created_at.desc()).first()
         
-        # Access Control: If no task found, only admin can see/manage it
+        # Access Control: If no task record exists for this file in the downloads folder, 
+        # it's an unmanaged file. Only admin can see/manage unmanaged files.
         if not task:
             if current_user.role != 'admin':
                 continue
         elif task.user_id != current_user.id and current_user.role != 'admin':
             continue
-
+    
         path = os.path.join(downloads_dir, filename)
         try:
             size = os.path.getsize(path)
         except OSError:
             continue
-
+    
         original_size = "Unknown"
         task_type = "unknown"
         encoder_type = None
         created_at = None
-
+    
         if task:
             task_type = task.task_type
             encoder_type = task.encoder_type
@@ -649,14 +819,16 @@ def list_library():
                             original_size = os.path.getsize(orig_path)
                         except OSError:
                             pass
-
+    
         files_data.append({
             'filename': filename,
             'video_id': task.video_id if task else None,
             'type': task_type,
             'created_at': created_at,
             'size': format_size(size) if isinstance(size, (int, float)) else size,
+            'size_bytes': size if isinstance(size, (int, float)) else 0,
             'original_size': format_size(original_size) if isinstance(original_size, (int, float)) else None,
+            'original_size_bytes': original_size if isinstance(original_size, (int, float)) else 0,
             'savings': calculate_savings(original_size, size),
             'encoder_type': encoder_type
         })
@@ -760,6 +932,10 @@ def download_file(filename):
 
 if __name__ == '__main__':
     bootstrap_admin()
+    
+    # Setup background scheduler for auto-downloads
+    scheduler = setup_scheduler()
+    
     # Register signal handlers for SIGTERM (Docker stop) and SIGINT (Ctrl+C)
     signal.signal(signal.SIGTERM, handle_shutdown)
     signal.signal(signal.SIGINT, handle_shutdown)

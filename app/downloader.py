@@ -78,7 +78,7 @@ def download_vod(url, video_id, task_id):
         with open(get_log_path(task_id), 'w') as log_file:
             log_file.write(f"Command: {cmd_str}\n")
             log_file.flush()
-
+            
             process = subprocess.Popen(
                 cmd, 
                 stdout=subprocess.PIPE, 
@@ -121,6 +121,35 @@ def download_vod(url, video_id, task_id):
             if success:
                 update_task_progress(task_id, 'completed', progress=100.0)
                 cleanup_temp_files()
+                
+                # --- Task Chaining for Automation Pipeline ---
+                from models import MonitoredChannel
+                with DownloadTask.query.get(task_id).session.no_autoflush:
+                    # Find the channel that triggered this download
+                    channel = MonitoredChannel.query.filter(
+                        MonitoredChannel.user_id == DownloadTask.query.get(task_id).user_id,
+                        MonitoredChannel.enabled == True
+                    ).first() # Simplified for now; real logic should correlate video_id
+                    
+                    if channel and channel.auto_compress:
+                        presets = channel.compression_presets.split(',') if channel.compression_presets else ['balanced']
+                        for preset in presets:
+                            preset = preset.strip()
+                            if not preset: continue
+                            
+                            # Create a new compression task
+                            from main import app
+                            with app.app_context():
+                                new_task = DownloadTask(
+                                    user_id=channel.user_id, 
+                                    filename=filename, 
+                                    status='pending', 
+                                    task_type='compress'
+                                )
+                                db.session.add(new_task)
+                                db.session.commit()
+                                start_compress_async(filename, preset, new_task.id, channel.user_id, channel.target_codec)
+                # ---------------------------------------------
             else:
                 update_task_progress(task_id, 'error', error_log="yt-dlp process failed and no output file found.")
                 cleanup_temp_files()
@@ -132,6 +161,7 @@ def download_vod(url, video_id, task_id):
         cleanup_temp_files()
     finally:
         active_processes.pop(task_id, None)
+
 
 def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)

@@ -24,7 +24,7 @@ class Favorite(db.Model):
 class DownloadTask(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    video_id = db.Column(db.String(100))
+    video_id = db.Column(db.String(100), index=True)
     filename = db.Column(db.String(255))
     status = db.Column(db.String(20), default='pending')
     progress = db.Column(db.Float, default=0.0)
@@ -32,4 +32,16 @@ class DownloadTask(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     error_log = db.Column(db.Text)
     encoder_type = db.Column(db.String(10))
+
+class MonitoredChannel(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    channel_name = db.Column(db.String(100), nullable=False)
+    twitch_user_id = db.Column(db.String(100))
+    enabled = db.Column(db.Boolean, default=True)
+    auto_compress = db.Column(db.Boolean, default=False)
+    compression_presets = db.Column(db.String(255), default='')  # Comma-separated presets
+    target_codec = db.Column(db.String(20), default='AV1')
+    delete_original = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
