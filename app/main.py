@@ -36,6 +36,24 @@ logging.basicConfig(
 )
 app.logger.setLevel(log_level)
 
+class PollingFilter(logging.Filter):
+    def __init__(self):
+        super().__init__()
+        self.last_logged = 0
+        self.interval = 60
+
+    def filter(self, record):
+        # Werkzeug logs request paths in the message
+        if 'GET /api/tasks' in record.getMessage():
+            now = time.time()
+            if now - self.last_logged < self.interval:
+                return False
+            self.last_logged = now
+        return True
+
+# Apply filter to werkzeug logger to silence frequent polling logs
+logging.getLogger('werkzeug').addFilter(PollingFilter())
+
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)

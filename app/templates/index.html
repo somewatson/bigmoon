@@ -170,7 +170,10 @@
                 <button class="modal-close" onclick="closeLogs()">✕</button>
                 <div class="log-header">
                     <h3 style="margin: 0;">Task Logs</h3>
-                    <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px;">Scroll to Bottom</button>
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="copyLogsToClipboard()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy Logs</button>
+                        <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Scroll to Bottom</button>
+                    </div>
                 </div>
                 <div id="logContainer" class="log-container"></div>
             </div>
@@ -485,6 +488,17 @@
         function scrollToBottom() {
             const container = document.getElementById('logContainer');
             container.scrollTop = container.scrollHeight;
+        }
+
+        async function copyLogsToClipboard() {
+            const container = document.getElementById('logContainer');
+            const text = container.innerText;
+            try {
+                await navigator.clipboard.writeText(text);
+                showToast('Logs copied to clipboard!', 'success');
+            } catch (e) {
+                showToast('Failed to copy logs', 'error');
+            }
         }
 
         function closeLogs() {
@@ -852,7 +866,11 @@
         window.toggleSidebar = toggleSidebar;
 
         // Polling for tasks
-        setInterval(loadTasks, 2000);
+        setInterval(() => {
+            if (window.currentTab === 'tasks') {
+                loadTasks();
+            }
+        }, 3000);
     </script>
 
 </body>
