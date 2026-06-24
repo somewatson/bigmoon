@@ -582,12 +582,15 @@ def manage_favorites():
                 headers=headers
             )
             user_res.raise_for_status()
-            user_data = {u['login']: u['profile_image_url'] for u in user_res.json().get('data', [])}
+            users_data = user_res.json().get('data', [])
+            user_map = {u['login']: u for u in users_data}
             
             for f in favs:
+                u_info = user_map.get(f.channel_name, {})
                 enriched_favs.append({
                     'channel_name': f.channel_name,
-                    'profile_image_url': user_data.get(f.channel_name, '')
+                    'profile_image_url': u_info.get('profile_image_url', ''),
+                    'description': u_info.get('description', '')
                 })
         else:
             enriched_favs = []
