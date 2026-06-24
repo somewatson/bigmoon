@@ -11,6 +11,7 @@ services:
     volumes:
       - ./data:/data
       - ./downloads:/app/downloads
+      - ./app:/app
     devices:
       - /dev/dri:/dev/dri
     restart: unless-stopped
