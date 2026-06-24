@@ -9,11 +9,9 @@ services:
     env_file:
       - .env
     volumes:
-      - ./data:/app/data
+      - ./data:/data
       - ./downloads:/app/downloads
-      - ./logs:/app/logs
       - ./app:/app
-
       - ./logs:/app/logs
     devices:
       - /dev/dri:/dev/dri
