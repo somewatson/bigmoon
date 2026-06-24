@@ -312,7 +312,7 @@
         .automation-settings { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; font-size: 0.85rem; color: var(--text-dim); }
         .setting-item { display: flex; align-items: center; gap: 8px; }
         .setting-item input[type="checkbox"] { width: auto; height: auto; margin: 0; cursor: pointer; flex-shrink: 0; }
-        .setting-item label { cursor: pointer; display: flex; align-items: center; gap: 8px; }
+        .setting-item label, .setting-item span { cursor: pointer; display: flex; align-items: center; gap: 8px; }
         .setting-item input { width: auto; }
 
         /* Tooltip System */
@@ -469,7 +469,11 @@
             <div class="sticky-header">
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                     <h2>Auto-Download Pipeline</h2>
-                    <div style="display: flex; gap: 10px;">
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <div class="fav-dropdown-container">
+                            <button onclick="toggleFavDropdown()" style="padding: 10px; background: #444; font-size: 0.8rem;" data-tooltip="Quick select from favorites">❤️ Favorites</button>
+                            <div id="favAutomationDropdown" class="fav-dropdown"></div>
+                        </div>
                         <input type="text" id="autoChannelInput" placeholder="Channel name..." style="max-width: 200px;">
                         <button onclick="addMonitoredChannel()">Add Channel</button>
                     </div>
