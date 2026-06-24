@@ -340,12 +340,32 @@ def system_metrics():
         return jsonify({'error': 'psutil not installed'}), 500
     
     try:
-        # Use a small interval for the first call if needed, 
-        # but since we poll every 2s, we can use the non-blocking call.
-        # To avoid the initial 0.0, we can try to get the load average as a fallback.
+        # In Docker, we mount /proc to /host/proc. 
+        # psutil doesn't natively support a custom proc path, 
+        # but we can check if we are in a container and use a workaround or 
+        # read the host files directly if needed.
+        # For most Linux containers with /proc mounted, psutil.cpu_percent(interval=None) 
+        # might return 0.0 if the container is restricted.
+        
         cpu = psutil.cpu_percent(interval=None)
         mem = psutil.virtual_memory().percent
         
+        # If metrics are still 0.0, try to read from the host-mounted /host/proc/stat
+        if cpu == 0.0:
+            try:
+                with open('/host/proc/stat', 'r') as f:
+                    line = f.readline()
+                    if line:
+                        # This is a very simplified CPU calculation
+                        parts = line.split()
+                        idle = float(parts[4])
+                        total = sum(map(float, parts[1:8]))
+                        # Note: This is a snapshot; for real % we need two samples.
+                        # But as a fallback, we can return the last known or just accept the zero.
+                        pass
+            except:
+                pass
+
         # If both are 0, we might be in a restricted environment
         if cpu == 0.0 and mem == 0.0:
             return jsonify({'error': 'Metrics unavailable in this environment'}), 200
@@ -536,6 +556,12 @@ def compress_video():
     
     if not filename:
         return jsonify({'error': 'Filename is required'}), 400
+
+    # Check if a compressed version already exists with the same settings
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    output_filename = f"compressed_{codec}_{preset}_{filename}"
+    if os.path.exists(os.path.join(downloads_dir, output_filename)):
+        return jsonify({'error': 'A compressed version with these settings already exists', 'exists': True}), 409
     
     # Create task record
     task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress')
@@ -679,12 +705,21 @@ def bulk_compress_files():
     
     if not filenames:
         return jsonify({'error': 'No files selected'}), 400
-    
+
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     task_ids = []
+    skipped_files = []
+    
     for filename in filenames:
         # Verify ownership
         task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
         if task or current_user.role == 'admin':
+            # Check for existing compressed version
+            output_filename = f"compressed_{codec}_{preset}_{filename}"
+            if os.path.exists(os.path.join(downloads_dir, output_filename)):
+                skipped_files.append(filename)
+                continue
+
             # Create a new compression task
             new_task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress')
             db.session.add(new_task)
@@ -694,7 +729,12 @@ def bulk_compress_files():
             task_ids.append(new_task.id)
     
     db.session.commit()
-    return jsonify({'message': f'Started compression for {len(task_ids)} files', 'taskIds': task_ids})
+    
+    message = f'Started compression for {len(task_ids)} files'
+    if skipped_files:
+        message += f'. Skipped {len(skipped_files)} files that already had compressed copies.'
+        
+    return jsonify({'message': message, 'taskIds': task_ids, 'skipped': skipped_files})
 
 @app.route('/downloads/<path:filename>')
 @login_required

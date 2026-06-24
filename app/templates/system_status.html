@@ -1,64 +1,62 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <title>System Status - Big Moon</title>
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        .status-container { max-width: 800px; margin: 2rem auto; padding: 1rem; }
-        .status-card { background: #2a2a2a; padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .status-item { display: flex; justify-content: space-between; padding: 1rem 0; border-bottom: 1px solid #444; }
-        .status-value { font-weight: bold; }
-        .supported { color: #4caf50; }
-        .unsupported { color: #f44336; }
-        .back-link { display: block; margin-top: 2rem; color: #aaa; text-decoration: none; }
-        .back-link:hover { color: #fff; }
-    </style>
-</head>
-<body>
-    <div class="status-container">
-        <div class="status-card">
-            <h1>System Hardware Status</h1>
-            <div id="ffmpeg-status">Loading...</div>
-            <a href="/admin" class="back-link">← Back to Admin Dashboard</a>
-        </div>
+{% extends "layout.html" %}
+
+{% block title %}System Status - Big Moon{% endblock %}
+
+{% block content %}
+<style>
+    .status-container { max-width: 800px; margin: 0 auto; padding: 1rem; }
+    .status-card { background: var(--card-bg); padding: 2rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
+    .status-item { display: flex; justify-content: space-between; padding: 1rem 0; border-bottom: 1px solid #444; }
+    .status-value { font-weight: bold; }
+    .supported { color: var(--success); }
+    .unsupported { color: var(--error); }
+</style>
+
+<div class="sticky-header">
+    <h1>⚙️ System Hardware Status</h1>
+</div>
+
+<div class="status-container">
+    <div class="status-card">
+        <div id="ffmpeg-status">Loading...</div>
     </div>
+</div>
 
-    <script>
-        async function loadStatus() {
-            try {
-                const response = await fetch('/api/system/ffmpeg');
-                const data = await response.json();
-                
-                if (data.error) {
-                    document.getElementById('ffmpeg-status').innerHTML = `<p class="unsupported">Error: ${data.error}</p>`;
-                    return;
-                }
-
-                let html = '';
-                const labels = {
-                    qsv: 'Intel QuickSync (QSV)',
-                    nvenc: 'NVIDIA NVENC',
-                    vaapi: 'VAAPI',
-                    amf: 'AMD AMF',
-                    libx264: 'Software x264 (libx264)'
-                };
-
-                for (const [key, supported] of Object.entries(data)) {
-                    html += `
-                        <div class="status-item">
-                            <span>${labels[key] || key}</span>
-                            <span class="status-value ${supported ? 'supported' : 'unsupported'}">
-                                ${supported ? '✓ Supported' : '✗ Unsupported'}
-                            </span>
-                        </div>
-                    `;
-                }
-                document.getElementById('ffmpeg-status').innerHTML = html;
-            } catch (e) {
-                document.getElementById('ffmpeg-status').innerHTML = `<p class="unsupported">Failed to fetch status</p>`;
+<script>
+    async function loadStatus() {
+        try {
+            const response = await fetch('/api/system/ffmpeg');
+            const data = await response.json();
+            
+            if (data.error) {
+                document.getElementById('ffmpeg-status').innerHTML = `<p class="unsupported">Error: ${data.error}</p>`;
+                return;
             }
+
+            let html = '';
+            const labels = {
+                qsv: 'Intel QuickSync (QSV)',
+                nvenc: 'NVIDIA NVENC',
+                vaapi: 'VAAPI',
+                amf: 'AMD AMF',
+                libx264: 'Software x264 (libx264)'
+            };
+
+            for (const [key, supported] of Object.entries(data)) {
+                html += `
+                    <div class="status-item">
+                        <span>${labels[key] || key}</span>
+                        <span class="status-value ${supported ? 'supported' : 'unsupported'}">
+                            ${supported ? '✓ Supported' : '✗ Unsupported'}
+                        </span>
+                    </div>
+                `;
+            }
+            document.getElementById('ffmpeg-status').innerHTML = html;
+        } catch (e) {
+            document.getElementById('ffmpeg-status').innerHTML = `<p class="unsupported">Failed to fetch status</p>`;
         }
-        loadStatus();
-    </script>
-</body>
-</html>
+    }
+    loadStatus();
+</script>
+{% endblock %}

@@ -1,174 +1,153 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Moon - Admin Command Center</title>
-    <style>
-        :root { --primary: #9146ff; --primary-hover: #772ce8; --bg: #1a1a1a; --card-bg: #2a2a2a; --text: #ffffff; --text-dim: #aaa; --success: #00c853; --error: #ff4d4d; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 30px; }
-        
-        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .nav h1 { font-size: 2rem; margin: 0; display: flex; align-items: center; gap: 15px; }
-        .nav-links { display: flex; gap: 20px; }
-        .nav-links a { color: var(--primary); text-decoration: none; font-weight: bold; transition: 0.2s; padding: 8px 16px; border-radius: 6px; background: rgba(145, 70, 255, 0.1); }
-        .nav-links a:hover { background: var(--primary); color: white; }
+{% extends "layout.html" %}
 
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 40px; }
-        .stat-card { 
-            background: var(--card-bg); 
-            padding: 25px; 
-            border-radius: 16px; 
-            border: 1px solid #444; 
-            display: flex; 
-            flex-direction: column; 
-            justify-content: center;
-            transition: transform 0.2s, border-color 0.2s;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-        }
-        .stat-card:hover { transform: translateY(-5px); border-color: var(--primary); }
-        .stat-label { font-size: 1rem; color: var(--text-dim); font-weight: 500; }
-        .stat-value { font-size: 2.5rem; font-weight: bold; color: var(--primary); margin-top: 10px; }
-        
-        /* Disk Gauge */
-        .disk-gauge-container { margin-top: 15px; width: 100%; }
-        .gauge-bg { background: #444; height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
-        .gauge-fill { height: 100%; width: 0%; transition: width 1s ease-out, background-color 0.3s; }
-        .gauge-text { font-size: 0.85rem; color: var(--text-dim); margin-top: 8px; display: block; text-align: right; }
+{% block title %}Big Moon - Admin Command Center{% endblock %}
 
-        .health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
-        .section-card { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .section-card h2 { margin-top: 0; margin-bottom: 20px; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; }
-        
-        .status-item { 
-            display: flex; 
-            justify-content: space-between; 
-            align-items: center;
-            padding: 12px 0; 
-            border-bottom: 1px solid #333; 
-        }
-        .status-item:last-child { border-bottom: none; }
-        .status-label { font-size: 0.95rem; color: var(--text-dim); }
-        .status-badge { 
-            padding: 4px 12px; 
-            border-radius: 20px; 
-            font-size: 0.8rem; 
-            font-weight: bold; 
-            display: flex; 
-            align-items: center; 
-            gap: 5px; 
-        }
-        .badge-supported { background: rgba(0, 200, 83, 0.2); color: var(--success); border: 1px solid var(--success); }
-        .badge-unsupported { background: rgba(255, 77, 77, 0.2); color: var(--error); border: 1px solid var(--error); }
-    </style>
-</head>
-<body>
-    <div class="nav">
-        <h1>🌙 Admin Command Center</h1>
-        <div class="nav-links">
-            <a href="{{ url_for('admin_users') }}">👥 Manage Users</a>
-            <a href="{{ url_for('index') }}">🏠 Back to Home</a>
-        </div>
-    </div>
+{% block content %}
+<style>
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 25px; margin-bottom: 40px; }
+    .stat-card { 
+        background: var(--card-bg); 
+        padding: 25px; 
+        border-radius: 16px; 
+        border: 1px solid #444; 
+        display: flex; 
+        flex-direction: column; 
+        justify-content: center;
+        transition: transform 0.2s, border-color 0.2s;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+    }
+    .stat-card:hover { transform: translateY(-5px); border-color: var(--primary); }
+    .stat-label { font-size: 1rem; color: var(--text-dim); font-weight: 500; }
+    .stat-value { font-size: 2.5rem; font-weight: bold; color: var(--primary); margin-top: 10px; }
+    
+    .disk-gauge-container { margin-top: 15px; width: 100%; }
+    .gauge-bg { background: #444; height: 12px; border-radius: 6px; overflow: hidden; position: relative; }
+    .gauge-fill { height: 100%; width: 0%; transition: width 1s ease-out, background-color 0.3s; }
+    .gauge-text { font-size: 0.85rem; color: var(--text-dim); margin-top: 8px; display: block; text-align: right; }
 
-    <div class="stats-grid">
-        <div class="stat-card">
-            <span class="stat-label">Disk Utilization</span>
-            <span class="stat-value" id="diskVal">{{ disk_info }}</span>
-            <div class="disk-gauge-container">
-                <div class="gauge-bg">
-                    <div id="diskFill" class="gauge-fill"></div>
-                </div>
-                <span id="diskPercent" class="gauge-text">Calculating...</span>
+    .health-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 30px; }
+    .section-card { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    .section-card h2 { margin-top: 0; margin-bottom: 20px; font-size: 1.25rem; display: flex; align-items: center; gap: 10px; }
+    
+    .status-item { 
+        display: flex; 
+        justify-content: space-between; 
+        align-items: center;
+        padding: 12px 0; 
+        border-bottom: 1px solid #333; 
+    }
+    .status-item:last-child { border-bottom: none; }
+    .status-label { font-size: 0.95rem; color: var(--text-dim); }
+    .status-badge { 
+        padding: 4px 12px; 
+        border-radius: 20px; 
+        font-size: 0.8rem; 
+        font-weight: bold; 
+        display: flex; 
+        align-items: center; 
+        gap: 5px; 
+    }
+    .badge-supported { background: rgba(0, 200, 83, 0.2); color: var(--success); border: 1px solid var(--success); }
+    .badge-unsupported { background: rgba(255, 77, 77, 0.2); color: var(--error); border: 1px solid var(--error); }
+</style>
+
+<div class="sticky-header">
+    <h1>🌙 Admin Command Center</h1>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <span class="stat-label">Disk Utilization</span>
+        <span class="stat-value" id="diskVal">{{ disk_info }}</span>
+        <div class="disk-gauge-container">
+            <div class="gauge-bg">
+                <div id="diskFill" class="gauge-fill"></div>
             </div>
-        </div>
-        <div class="stat-card">
-            <span class="stat-label">Total Registered Users</span>
-            <span class="stat-value">{{ user_count }}</span>
-        </div>
-        <div class="stat-card">
-            <span class="stat-label">Cumulative Tasks</span>
-            <span class="stat-value">{{ task_count }}</span>
+            <span id="diskPercent" class="gauge-text">Calculating...</span>
         </div>
     </div>
+    <div class="stat-card">
+        <span class="stat-label">Total Registered Users</span>
+        <span class="stat-value">{{ user_count }}</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Cumulative Tasks</span>
+        <span class="stat-value">{{ task_count }}</span>
+    </div>
+</div>
 
-    <div class="health-grid">
-        <div class="section-card">
-            <h2>⚙️ Hardware Acceleration Status</h2>
-            <div id="ffmpeg-status">Loading...</div>
-        </div>
-        <div class="section-card">
-            <h2>🚀 Quick Actions</h2>
-            <div style="display: flex; flex-direction: column; gap: 15px;">
-                <a href="{{ url_for('admin_users') }}" style="text-decoration: none; background: var(--primary); color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#772ce8'" onmouseout="this.style.background='#9146ff'">Create New User</a>
-                <p style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.5;">
-                    The Command Center provides real-time insights into your system's encoding capabilities and user base. 
-                    Ensure VAAPI is active for optimal AV1 performance.
-                </p>
-            </div>
+<div class="health-grid">
+    <div class="section-card">
+        <h2>⚙️ Hardware Acceleration Status</h2>
+        <div id="ffmpeg-status">Loading...</div>
+    </div>
+    <div class="section-card">
+        <h2>🚀 Quick Actions</h2>
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <a href="{{ url_for('admin_users') }}" style="text-decoration: none; background: var(--primary); color: white; padding: 12px; border-radius: 8px; text-align: center; font-weight: bold; transition: 0.2s;" onmouseover="this.style.background='#772ce8'" onmouseout="this.style.background='#9146ff'">Create New User</a>
+            <p style="color: var(--text-dim); font-size: 0.9rem; line-height: 1.5;">
+                The Command Center provides real-time insights into your system's encoding capabilities and user base. 
+                Ensure VAAPI is active for optimal AV1 performance.
+            </p>
         </div>
     </div>
+</div>
 
-    <script>
-        function updateDiskGauge() {
-            const info = "{{ disk_info }}";
-            const match = info.match(/([\d.]+)\s+used\s+\/\s+([\d.]+)\s+total/);
-            if (match) {
-                const used = parseFloat(match[1]);
-                const total = parseFloat(match[2]);
-                const unit = info.split(' ')[1]; // e.g., GB
-                
-                // We need to be careful with mixed units, but format_size usually keeps it consistent
-                // If the units differ, this is a simple approximation
-                const percent = Math.round((used / total) * 100);
-                const fill = document.getElementById('diskFill');
-                fill.style.width = percent + '%';
-                
-                if (percent < 70) fill.style.backgroundColor = 'var(--success)';
-                else if (percent < 90) fill.style.backgroundColor = '#ffeb3b';
-                else fill.style.backgroundColor = 'var(--error)';
-                
-                document.getElementById('diskPercent').textContent = percent + '% of storage used';
-            }
+<script>
+    function updateDiskGauge() {
+        const info = "{{ disk_info }}";
+        const match = info.match(/([\d.]+)\s+used\s+\/\s+([\d.]+)\s+total/);
+        if (match) {
+            const used = parseFloat(match[1]);
+            const total = parseFloat(match[2]);
+            const percent = Math.round((used / total) * 100);
+            const fill = document.getElementById('diskFill');
+            fill.style.width = percent + '%';
+            
+            if (percent < 70) fill.style.backgroundColor = 'var(--success)';
+            else if (percent < 90) fill.style.backgroundColor = '#ffeb3b';
+            else fill.style.backgroundColor = 'var(--error)';
+            
+            document.getElementById('diskPercent').textContent = percent + '% of storage used';
         }
+    }
 
-        async function loadStatus() {
-            try {
-                const response = await fetch('/api/system/ffmpeg');
-                const data = await response.json();
-                
-                if (data.error) {
-                    document.getElementById('ffmpeg-status').innerHTML = `<p class="badge-unsupported" style="padding: 10px; border-radius: 8px;">Error: ${data.error}</p>`;
-                    return;
-                }
-
-                let html = '';
-                const labels = {
-                    qsv: 'Intel QuickSync (QSV)',
-                    nvenc: 'NVIDIA NVENC',
-                    vaapi: 'VAAPI',
-                    amf: 'AMD AMF',
-                    libx264: 'Software x264 (libx264)'
-                };
-
-                for (const [key, supported] of Object.entries(data)) {
-                    html += `
-                        <div class="status-item">
-                            <span class="status-label">${labels[key] || key}</span>
-                            <span class="status-badge ${supported ? 'badge-supported' : 'badge-unsupported'}">
-                                ${supported ? '✓ Active' : '✗ Inactive'}
-                            </span>
-                        </div>
-                    `;
-                }
-                document.getElementById('ffmpeg-status').innerHTML = html;
-            } catch (e) {
-                document.getElementById('ffmpeg-status').innerHTML = `<p class="badge-unsupported" style="padding: 10px; border-radius: 8px;">Failed to fetch status</p>`;
+    async function loadStatus() {
+        try {
+            const response = await fetch('/api/system/ffmpeg');
+            const data = await response.json();
+            
+            if (data.error) {
+                document.getElementById('ffmpeg-status').innerHTML = `<p class="badge-unsupported" style="padding: 10px; border-radius: 8px;">Error: ${data.error}</p>`;
+                return;
             }
-        }
 
-        updateDiskGauge();
-        loadStatus();
-    </script>
-</body>
-</html>
+            let html = '';
+            const labels = {
+                qsv: 'Intel QuickSync (QSV)',
+                nvenc: 'NVIDIA NVENC',
+                vaapi: 'VAAPI',
+                amf: 'AMD AMF',
+                libx264: 'Software x264 (libx264)'
+            };
+
+            for (const [key, supported] of Object.entries(data)) {
+                html += `
+                    <div class="status-item">
+                        <span class="status-label">${labels[key] || key}</span>
+                        <span class="status-badge ${supported ? 'badge-supported' : 'badge-unsupported'}">
+                            ${supported ? '✓ Active' : '✗ Inactive'}
+                        </span>
+                    </div>
+                `;
+            }
+            document.getElementById('ffmpeg-status').innerHTML = html;
+        } catch (e) {
+            document.getElementById('ffmpeg-status').innerHTML = `<p class="badge-unsupported" style="padding: 10px; border-radius: 8px;">Failed to fetch status</p>`;
+        }
+    }
+
+    updateDiskGauge();
+    loadStatus();
+</script>
+{% endblock %}

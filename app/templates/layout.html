@@ -15,7 +15,8 @@
         .sidebar { width: 260px; background: #0a0a0a; display: flex; flex-direction: column; padding: 20px; border-right: 1px solid var(--border); transition: width 0.3s ease; position: relative; z-index: 100; }
         .sidebar.collapsed { width: 80px; padding: 20px 10px; }
         .sidebar.collapsed h1 { display: none; }
-        .sidebar.collapsed .nav-item span { display: none; }
+        .sidebar.collapsed .nav-item span:last-child { display: none; }
+        .sidebar.collapsed .nav-item span:first-child { display: inline-block; width: 20px; text-align: center; }
         .sidebar-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 30px; }
         .sidebar h1 { font-size: 1.5rem; margin: 0; display: flex; align-items: center; gap: 10px; white-space: nowrap; }
         .sidebar-toggle { background: none; color: var(--text-dim); border: 1px solid var(--border); border-radius: 4px; cursor: pointer; padding: 4px 8px; font-size: 0.8rem; transition: 0.2s; }
@@ -27,11 +28,11 @@
         .nav-item.active::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: white; }
         .sidebar.collapsed .nav-item.active::before { left: -10px; width: 4px; background: white; }
         
-        .nav-submenu { margin-left: 40px; display: none; flex-direction: column; gap: 5px; }
+        .nav-submenu { margin-left: 20px; display: none; flex-direction: column; gap: 5px; padding-left: 10px; border-left: 1px solid var(--border); }
         .nav-submenu.active { display: flex; }
-        .submenu-item { padding: 8px 15px; font-size: 0.85rem; color: var(--text-dim); text-decoration: none; border-radius: 4px; transition: 0.2s; }
+        .submenu-item { padding: 8px 15px; font-size: 0.85rem; color: var(--text-dim); text-decoration: none; border-radius: 4px; transition: 0.2s; display: flex; align-items: center; gap: 10px; }
         .submenu-item:hover { color: white; background: #222; }
-        .submenu-item.active { color: white; font-weight: bold; }
+        .submenu-item.active { color: white; font-weight: bold; background: rgba(145, 70, 255, 0.1); }
         
         .logout-btn { margin-top: auto; color: var(--error); text-align: center; display: flex; align-items: center; gap: 12px; justify-content: center; }
         
@@ -141,9 +142,9 @@
         <div class="nav-group">
             <a class="nav-item" onclick="toggleAdminMenu()" id="nav-admin"><span>🛠️</span> <span>Admin</span></a>
             <div class="nav-submenu" id="adminSubmenu">
-                <a class="submenu-item" href="{{ url_for('admin_dashboard') }}" id="sub-admin-dash">Command Center</a>
-                <a class="submenu-item" href="{{ url_for('admin_users') }}" id="sub-admin-users">User Management</a>
-                <a class="submenu-item" href="{{ url_for('system_status') }}" id="sub-admin-status">System Status</a>
+                <a class="submenu-item {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">📊 Command Center</a>
+                <a class="submenu-item {% if request.endpoint == 'admin_users' %}active{% endif %}" href="{{ url_for('admin_users') }}">👥 User Management</a>
+                <a class="submenu-item {% if request.endpoint == 'system_status' %}active{% endif %}" href="{{ url_for('system_status') }}">⚙️ System Status</a>
             </div>
         </div>
         {% endif %}
@@ -168,7 +169,8 @@
 
         function toggleAdminMenu() {
             const submenu = document.getElementById('adminSubmenu');
-            if (submenu) submenu.classList.toggle('active');
+            if (!submenu) return;
+            submenu.classList.toggle('active');
         }
 
         function showTab(tabId) {

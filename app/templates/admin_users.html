@@ -1,146 +1,130 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Big Moon - User Management</title>
-    <style>
-        :root { --primary: #9146ff; --primary-hover: #772ce8; --bg: #1a1a1a; --card-bg: #2a2a2a; --text: #ffffff; --text-dim: #aaa; --success: #00c853; --error: #ff4d4d; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 30px; }
-        .nav { display: flex; justify-content: space-between; align-items: center; margin-bottom: 40px; }
-        .nav h1 { font-size: 2rem; margin: 0; display: flex; align-items: center; gap: 15px; }
-        .nav-links { display: flex; gap: 20px; }
-        .nav-links a { color: var(--primary); text-decoration: none; font-weight: bold; transition: 0.2s; padding: 8px 16px; border-radius: 6px; background: rgba(145, 70, 255, 0.1); }
-        .nav-links a:hover { background: var(--primary); color: white; }
-        
-        .content-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
-        .card { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .card h2 { margin-top: 0; margin-bottom: 20px; font-size: 1.25rem; }
-        
-        label { display: block; margin-bottom: 8px; color: var(--text-dim); font-size: 0.9rem; }
-        input, select { padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #444; background: #333; color: white; width: 100%; box-sizing: border-box; font-size: 1rem; }
-        button { padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
-        button:hover { background: var(--primary-hover); }
-        
-        .user-table-container { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
-        .user-table { width: 100%; border-collapse: collapse; text-align: left; }
-        .user-table th { color: var(--text-dim); font-weight: 500; padding: 12px; border-bottom: 2px solid #333; }
-        .user-table td { padding: 12px; border-bottom: 1px solid #333; }
-        .role-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
-        .role-admin { background: rgba(145, 70, 255, 0.2); color: var(--primary); border: 1px solid var(--primary); }
-        .role-user { background: rgba(170, 170, 170, 0.2); color: var(--text-dim); border: 1px solid #555; }
-        #statusMsg { margin-top: 15px; font-size: 0.9rem; text-align: center; }
-    </style>
-</head>
-<body>
-    <div class="nav">
-        <h1>👥 User Management</h1>
-        <div class="nav-links">
-            <a href="{{ url_for('admin_dashboard') }}">Dashboard</a>
-            <a href="{{ url_for('index') }}">Back to Home</a>
-        </div>
+{% extends "layout.html" %}
+
+{% block title %}Big Moon - User Management{% endblock %}
+
+{% block content %}
+<style>
+    .content-grid { display: grid; grid-template-columns: 350px 1fr; gap: 30px; }
+    .card { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    .card h2 { margin-top: 0; margin-bottom: 20px; font-size: 1.25rem; }
+    
+    label { display: block; margin-bottom: 8px; color: var(--text-dim); font-size: 0.9rem; }
+    input, select { padding: 12px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #444; background: #333; color: white; width: 100%; box-sizing: border-box; font-size: 1rem; }
+    button { padding: 12px 20px; background: var(--primary); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; width: 100%; transition: 0.2s; }
+    button:hover { background: var(--primary-hover); }
+    
+    .user-table-container { background: var(--card-bg); padding: 25px; border-radius: 16px; border: 1px solid #444; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+    .user-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .user-table th { color: var(--text-dim); font-weight: 500; padding: 12px; border-bottom: 2px solid #333; }
+    .user-table td { padding: 12px; border-bottom: 1px solid #333; }
+    .role-badge { padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: bold; }
+    .role-admin { background: rgba(145, 70, 255, 0.2); color: var(--primary); border: 1px solid var(--primary); }
+    .role-user { background: rgba(170, 170, 170, 0.2); color: var(--text-dim); border: 1px solid #555; }
+</style>
+
+<div class="sticky-header">
+    <h1>👥 User Management</h1>
+</div>
+
+<div class="content-grid">
+    <div class="card">
+        <h2>Create New User</h2>
+        <form id="createUserForm">
+            <label>Username</label>
+            <input type="text" name="username" required placeholder="e.g. jdoe">
+            <label>Password</label>
+            <input type="password" name="password" required placeholder="••••••••">
+            <label>Role</label>
+            <select name="role">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+            </select>
+            <button type="submit">Create User</button>
+        </form>
+        <p id="statusMsg" style="margin-top: 15px; font-size: 0.9rem; text-align: center;"></p>
     </div>
 
-    <div class="content-grid">
-        <div class="card">
-            <h2>Create New User</h2>
-            <form id="createUserForm">
-                <label>Username</label>
-                <input type="text" name="username" required placeholder="e.g. jdoe">
-                <label>Password</label>
-                <input type="password" name="password" required placeholder="••••••••">
-                <label>Role</label>
-                <select name="role">
-                    <option value="user">User</option>
-                    <option value="admin">Admin</option>
-                </select>
-                <button type="submit">Create User</button>
-            </form>
-            <p id="statusMsg"></p>
-        </div>
-
-        <div class="user-table-container">
-            <h2>Registered Users</h2>
-            <table class="user-table">
-                <thead>
-                    <tr>
-                        <th>Username</th>
-                        <th>Role</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="userList">
-                    <!-- Users will be loaded here -->
-                </tbody>
-            </table>
-        </div>
+    <div class="user-table-container">
+        <h2>Registered Users</h2>
+        <table class="user-table">
+            <thead>
+                <tr>
+                    <th>Username</th>
+                    <th>Role</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="userList">
+                <!-- Users will be loaded here -->
+            </tbody>
+        </table>
     </div>
+</div>
 
-    <script>
-        document.getElementById('createUserForm').onsubmit = async (e) => {
-            e.preventDefault();
-            const formData = new FormData(e.target);
-            const statusMsg = document.getElementById('statusMsg');
+<script>
+    document.getElementById('createUserForm').onsubmit = async (e) => {
+        e.preventDefault();
+        const formData = new FormData(e.target);
+        const statusMsg = document.getElementById('statusMsg');
 
-            try {
-                const response = await fetch('/admin/create_user', {
-                    method: 'POST',
-                    body: formData
-                });
-                const data = await response.json();
-                statusMsg.innerText = data.message || data.error;
-                statusMsg.style.color = data.message ? '#00c853' : '#ff4d4d';
-                if (data.message) {
-                    e.target.reset();
-                    loadUsers();
-                }
-            } catch (e) {
-                statusMsg.innerText = 'An error occurred.';
-                statusMsg.style.color = '#ff4d4d';
+        try {
+            const response = await fetch('/admin/create_user', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            statusMsg.innerText = data.message || data.error;
+            statusMsg.style.color = data.message ? '#00c853' : '#ff4d4d';
+            if (data.message) {
+                e.target.reset();
+                loadUsers();
             }
-        };
-
-        async function loadUsers() {
-            try {
-                const response = await fetch('/admin/users_list');
-                const data = await response.json();
-                const list = document.getElementById('userList');
-                list.innerHTML = '';
-                
-                data.users.forEach(user => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${user.username}</td>
-                        <td><span class="role-badge role-${user.role}">${user.role.toUpperCase()}</span></td>
-                        <td><button onclick="deleteUser('${user.username}')" style="background: var(--error); padding: 5px 10px; font-size: 0.7rem; width: auto;">Delete</button></td>
-                    `;
-                    list.appendChild(row);
-                });
-            } catch (e) {
-                console.error('Failed to load users', e);
-            }
+        } catch (e) {
+            statusMsg.innerText = 'An error occurred.';
+            statusMsg.style.color = '#ff4d4d';
         }
+    };
 
-        async function deleteUser(username) {
-            if (!confirm(`Delete user ${username}?`)) return;
-            try {
-                const response = await fetch('/admin/delete_user', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username })
-                });
-                const data = await response.json();
-                if (data.message) {
-                    loadUsers();
-                } else {
-                    alert(data.error);
-                }
-            } catch (e) {
-                alert('Error deleting user');
-            }
+    async function loadUsers() {
+        try {
+            const response = await fetch('/admin/users_list');
+            const data = await response.json();
+            const list = document.getElementById('userList');
+            list.innerHTML = '';
+            
+            data.users.forEach(user => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.username}</td>
+                    <td><span class="role-badge role-${user.role}">${user.role.toUpperCase()}</span></td>
+                    <td><button onclick="deleteUser('${user.username}')" style="background: var(--error); padding: 5px 10px; font-size: 0.7rem; width: auto;">Delete</button></td>
+                `;
+                list.appendChild(row);
+            });
+        } catch (e) {
+            console.error('Failed to load users', e);
         }
+    }
 
-        loadUsers();
-    </script>
-</body>
-</html>
+    async function deleteUser(username) {
+        if (!confirm(`Delete user ${username}?`)) return;
+        try {
+            const response = await fetch('/admin/delete_user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username })
+            });
+            const data = await response.json();
+            if (data.message) {
+                loadUsers();
+            } else {
+                alert(data.error);
+            }
+        } catch (e) {
+            alert('Error deleting user');
+        }
+    }
+
+    loadUsers();
+</script>
+{% endblock %}
