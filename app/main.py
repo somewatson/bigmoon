@@ -63,9 +63,24 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
+def cleanup_temp_files():
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    try:
+        files = os.listdir(downloads_dir)
+        temp_files = [f for f in files if f.endswith('.temp.mp4') or f.endswith('.temp')]
+        for f in temp_files:
+            os.remove(os.path.join(downloads_dir, f))
+        if temp_files:
+            logging.info(f"Cleaned up {len(temp_files)} temporary files from {downloads_dir}")
+    except Exception as e:
+        logging.error(f"Error cleaning up temp files: {e}")
+
 def bootstrap_admin():
     with app.app_context():
         db.create_all()
+        
+        # Cleanup temporary files on startup
+        cleanup_temp_files()
         
         # Migration: Add error_log column to DownloadTask if it doesn't exist
         try:
@@ -367,9 +382,13 @@ def task_logs(task_id):
 @login_required
 def clear_failed_tasks():
     try:
-        count = DownloadTask.query.filter_by(user_id=current_user.id, status='error').delete()
+        # Clear tasks that are in 'error' status OR are stuck in pending/downloading/processing
+        count = DownloadTask.query.filter(
+            DownloadTask.user_id == current_user.id,
+            DownloadTask.status != 'completed'
+        ).delete()
         db.session.commit()
-        return jsonify({'message': f'Cleared {count} failed tasks'})
+        return jsonify({'message': f'Cleared {count} incomplete or failed tasks'})
     except Exception as e:
         db.session.rollback()
         return jsonify({'error': str(e)}), 500
@@ -445,10 +464,13 @@ def list_files():
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     try:
         files = os.listdir(downloads_dir)
+        # Filter out temp files and hidden files
+        filtered_files = [f for f in files if not (f.endswith('.temp.mp4') or f.endswith('.temp') or f.startswith('.'))]
+        
         # Filter for the user's files or allow all if admin
-        user_files = [f for f in files if any(t.filename == f for t in DownloadTask.query.filter_by(user_id=current_user.id).all())]
+        user_files = [f for f in filtered_files if any(t.filename == f for t in DownloadTask.query.filter_by(user_id=current_user.id).all())]
         if current_user.role == 'admin':
-            user_files = files
+            user_files = filtered_files
         return jsonify({'files': user_files})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
@@ -461,14 +483,25 @@ def list_library():
     
     files = []
     for t in tasks:
+        # Skip temp files
+        if t.filename and (t.filename.endswith('.temp.mp4') or t.filename.endswith('.temp')):
+            continue
+            
+        # Verify file exists on disk
+        if not t.filename:
+            continue
+        path = os.path.join(downloads_dir, t.filename)
+        if not os.path.exists(path):
+            continue
+            
         size = "Unknown"
         original_size = "Unknown"
         
         # Calculate current file size
-        if t.filename:
-            path = os.path.join(downloads_dir, t.filename)
-            if os.path.exists(path):
-                size = os.path.getsize(path)
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            continue # Skip if we can't read size (e.g. file disappeared)
         
         # If this is a compressed file, try to find the original
         if t.task_type == 'compress':
