@@ -253,9 +253,23 @@
             height: 45px; 
             border-radius: 4px; 
             object-fit: cover; 
-            background: #333; 
+            background: #222; 
             border: 1px solid var(--border); 
             flex-shrink: 0;
+            position: relative;
+            display: block;
+        }
+        .thumb-preview.error {
+            opacity: 0;
+        }
+        .thumb-preview::after {
+            content: '🎬';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            opacity: 0.3;
         }
         
         .file-details { flex: 1; display: flex; flex-direction: column; gap: 4px; overflow: hidden; }
@@ -462,26 +476,17 @@
                 </div>
             </div>
             
-                <div id="favAutomationSection" style="display: block; margin-bottom: 30px;">
-                    <h3 style="font-size: 1rem; color: var(--text-dim); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
-                        <span>❤️ Quick Add from Favorites</span>
-                    </h3>
-                    <div id="favAutomationGrid" class="favorites-grid"></div>
-                </div>
-
-
-            <p style="color: var(--text-dim); margin-bottom: 20px;">Automatically monitor channels and chain downloads to compressions.</p>
-            <div id="automationList" class="task-list"></div>
-        </div>
-
-                    <button onclick="addMonitoredChannel()">Add Channel</button>
-                </div>
-
-                </div>
+            <div id="favAutomationSection" style="display: block; margin-bottom: 30px;">
+                <h3 style="font-size: 1rem; color: var(--text-dim); margin-bottom: 15px; display: flex; align-items: center; gap: 8px;">
+                    <span>❤️ Quick Add from Favorites</span>
+                </h3>
+                <div id="favAutomationGrid" class="favorites-grid"></div>
             </div>
+
             <p style="color: var(--text-dim); margin-bottom: 20px;">Automatically monitor channels and chain downloads to compressions.</p>
             <div id="automationList" class="task-list"></div>
         </div>
+
         
         <!-- Library Tab -->
 
@@ -989,7 +994,7 @@
                     <div class="checkbox-wrapper">
                         <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
                     </div>
-                    <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODAiIGhlaWdodD0iNDUiIHhtbG5zPSJodHRwOi8vd3d3LndyMy5vcmcvMjAwMC9zdmciIHN0eWxlPSJiYWNrZ3JvdW5kOiMzMzM7IGZpbGw6IzY2NjsiPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBmaWxsPSIjZmFmYWZhIHRleHQtYW5jaG9yPSStaWRkbGVpIiBmb250LXNpemU9IjEwIj5Wb2lkbzC///SXRleHQ+PC9zdmc+'">
+                    <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">
                     <div class="file-details">
                         <h4 class="file-name">${file.filename}</h4>
                         <div class="file-meta">
@@ -1001,6 +1006,7 @@
                     </div>
                     <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
                 `;
+
 
                 
                 if (file.type === 'compress') {
