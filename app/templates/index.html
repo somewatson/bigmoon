@@ -409,12 +409,17 @@
                                 <div class="metric-bar-bg"><div id="memBar" class="metric-bar-fill"></div></div>
                             </div>
                         </div>
-                        <div style="display: flex; gap: 10px;">
-                                <button onclick="copyLogsToClipboard()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Copy logs to clipboard">Copy Logs</button>
-                                <button onclick="refreshLogs()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Refresh logs from server">Refresh</button>
-                                <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Jump to end of logs">Scroll to Bottom</button>
-
-                        </div>
+<div style="display: flex; align-items: center; gap: 15px;">
+    <div class="progress-container" style="width: 150px; margin-top: 0;">
+        <div id="logProgressBar" class="progress-bar" style="width: 0%;"></div>
+        <span id="logProgressText" class="progress-text">0%</span>
+    </div>
+    <div style="display: flex; gap: 10px;">
+        <button onclick="copyLogsToClipboard()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Copy logs to clipboard">Copy Logs</button>
+        <button onclick="refreshLogs()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Refresh logs from server">Refresh</button>
+        <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;" data-tooltip="Jump to end of logs">Scroll to Bottom</button>
+    </div>
+</div>
                     </div>
                 </div>
                 <div id="logContainer" class="log-container"></div>
@@ -880,14 +885,23 @@
                     }
                 }
                 
-                // 3. Update LIVE badge
+                // 3. Update LIVE badge and Progress
                 try {
                     const taskRes = await fetch('/api/tasks');
                     const taskData = await taskRes.json();
                     const task = taskData.tasks.find(t => t.id === taskId);
                     updateLiveBadge(task && (task.status === 'downloading' || task.status === 'processing'));
+                    
+                    if (task) {
+                        const progressBar = document.getElementById('logProgressBar');
+                        const progressText = document.getElementById('logProgressText');
+                        if (progressBar && progressText) {
+                            progressBar.style.width = `${task.progress}%`;
+                            progressText.textContent = `${task.progress}%`;
+                        }
+                    }
                 } catch (e) {
-                    console.error('Error updating live badge:', e);
+                    console.error('Error updating live badge or progress:', e);
                 }
             } catch (e) {
                 console.error('Error fetching logs:', e);
@@ -1378,13 +1392,13 @@
                 const response = await fetch('/api/tasks/clear_failed', { method: 'POST' });
                 const data = await response.json();
                 if (data.message) {
-                    alert(data.message);
+                    showToast(data.message, 'success');
                     loadTasks();
                 } else {
-                    alert('Error: ' + data.error);
+                    showToast('Error: ' + data.error, 'error');
                 }
             } catch (e) {
-                alert('An error occurred while clearing tasks.');
+                showToast('An error occurred while clearing tasks.', 'error');
             }
         }
 

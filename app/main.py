@@ -706,10 +706,10 @@ def task_logs(task_id):
 @login_required
 def clear_failed_tasks():
     try:
-        # Clear tasks that are in 'error' status OR are stuck in pending/downloading/processing
+        # Clear tasks that are specifically in 'error' status
         count = DownloadTask.query.filter(
             DownloadTask.user_id == current_user.id,
-            DownloadTask.status != 'completed'
+            DownloadTask.status == 'error'
         ).delete()
         db.session.commit()
         return jsonify({'message': f'Cleared {count} incomplete or failed tasks'})
