@@ -798,6 +798,8 @@
             handleFileSelection(cb);
         });
     }
+
+    async function loadLibrary() {
         try {
             const response = await apiFetch('/api/library');
             const data = await response.json();
