@@ -340,9 +340,19 @@ def system_metrics():
         return jsonify({'error': 'psutil not installed'}), 500
     
     try:
+        # Use a small interval for the first call if needed, 
+        # but since we poll every 2s, we can use the non-blocking call.
+        # To avoid the initial 0.0, we can try to get the load average as a fallback.
+        cpu = psutil.cpu_percent(interval=None)
+        mem = psutil.virtual_memory().percent
+        
+        # If both are 0, we might be in a restricted environment
+        if cpu == 0.0 and mem == 0.0:
+            return jsonify({'error': 'Metrics unavailable in this environment'}), 200
+            
         return jsonify({
-            'cpu': psutil.cpu_percent(interval=None),
-            'memory': psutil.virtual_memory().percent
+            'cpu': cpu,
+            'memory': mem
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
