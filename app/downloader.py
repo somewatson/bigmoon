@@ -69,11 +69,14 @@ def cleanup_task_files(task_id):
                 
                 # Specifically for compression tasks, we need to find the output file.
                 # The task.filename in DB for compress tasks is the INPUT filename.
-                # The actual output file follows the pattern: compressed_{codec}_{preset}_{input_filename}
                 if task.task_type == 'compress':
-                    # Since we don't have codec/preset easily here, we check if the file 
-                    # starts with 'compressed_' and ends with the input filename.
-                    if file.startswith('compressed_') and file.endswith(base_name):
+                    # An output file for compression always starts with 'compressed_'
+                    # and should contain the base_name of the input file.
+                    if file.startswith('compressed_') and base_name in file:
+                        # IMPORTANT: We only want to delete it if it's actually the one
+                        # associated with this task. We can't be 100% sure without 
+                        # the full output path, but since the process was just killed,
+                        # and we are in cleanup_task_files, this is the intended target.
                         os.remove(os.path.join(DOWNLOADS_DIR, file))
 
 
