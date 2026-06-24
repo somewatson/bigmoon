@@ -462,7 +462,7 @@
             const data = await response.json();
             const list = document.getElementById('fileList');
             list.innerHTML = '';
-            data.files.forEach(file => {
+            data.files.filter(file => !file.startsWith('compressed_')).forEach(file => {
                     const item = document.createElement('div');
                     item.className = 'file-item';
                     item.innerHTML = `
