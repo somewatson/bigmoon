@@ -1025,6 +1025,14 @@ window.clearFailedTasks = clearFailedTasks;
 window.cancelTask = cancelTask;
 window.toggleSidebar = toggleSidebar;
 
+function toggleAdminMenu() {
+    const submenu = document.getElementById('adminSubmenu');
+    if (!submenu) return;
+    submenu.classList.toggle('active');
+}
+
+window.toggleAdminMenu = toggleAdminMenu;
+
 // Initial tab load
 const savedTab = localStorage.getItem('bigmoon_current_tab') || 'search';
 showTab(savedTab);
