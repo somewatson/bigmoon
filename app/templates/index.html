@@ -35,7 +35,13 @@
         .tab-content.active { display: block; }
 
         /* Components */
-        .search-section { display: flex; gap: 10px; margin-bottom: 30px; }
+        .search-section { 
+            display: flex; 
+            gap: 10px; 
+            margin-bottom: 30px; 
+            justify-content: flex-start;
+            width: 100%;
+        }
         input { padding: 12px; border-radius: 6px; border: 1px solid #444; background: #333; color: white; flex-grow: 1; font-size: 1rem; }
         button { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; transition: 0.2s; }
         button:hover { background: var(--primary-hover); }
@@ -299,7 +305,7 @@
 
     <script>
         // Define functions globally to ensure they are accessible from inline onclick attributes
-        window.currentTab = localStorage.getItem('bigmoon_current_tab') || 'search';
+        window.currentTab = '{{ current_tab }}' || localStorage.getItem('bigmoon_current_tab') || 'search';
         let apiRetryCount = 0;
 
         async function apiFetch(url, options = {}) {
@@ -350,12 +356,17 @@
             }
             window.currentTab = tabId;
             localStorage.setItem('bigmoon_current_tab', tabId);
-
+    
             if(tabId === 'favorites') loadFavorites();
             if(tabId === 'library') loadLibrary();
             if(tabId === 'compress') loadFiles();
             if(tabId === 'tasks') loadTasks();
         }
+
+        // Initialize tab on load
+        window.addEventListener('DOMContentLoaded', () => {
+            showTab(window.currentTab);
+        });
 
         async function searchVideos() {
             const channel = document.getElementById('channelInput').value;
@@ -674,7 +685,7 @@
                         <div class="checkbox-wrapper">
                             <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
                         </div>
-                        <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.src='https://via.placeholder.com/80x45?text=Video'">
+                        <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iODB soapyIGhlaWdodD0iNDUiIHhtbG5zPSJodHRwOi8vd3d3CndCcy5vcmcvMjAwMC9zdmciIHN0eWxlPSJiYWNrZ3JvdW5kOiMzMzM7IGZpBGlsbDojNjY2OyI+PHRleHQgeD0iNTBfSIgeT0iMjUiIGZpbGwiI2YwZjBmMCIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZm9udC1zaXplPSIxMCI+Vm9pZG88L3RleHQ+PC9zdmc+'">
                         <div class="file-details">
                             <h4 class="file-name">${file.filename}</h4>
                             <div class="file-meta">

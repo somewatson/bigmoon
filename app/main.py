@@ -192,7 +192,8 @@ def logout():
 @app.route('/')
 @login_required
 def index():
-    return render_template('index.html')
+    tab = request.args.get('tab', 'search')
+    return render_template('index.html', current_tab=tab)
 
 @app.route('/admin')
 @login_required
