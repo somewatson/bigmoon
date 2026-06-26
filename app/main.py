@@ -867,9 +867,10 @@ def list_library():
                         pass
         else:
             task_type = 'download'
-            if task:
-                encoder_type = task.encoder_type
-                created_at = task.created_at
+
+        if task:
+            encoder_type = task.encoder_type
+            created_at = task.created_at
     
         files_data.append({
             'filename': filename,
