@@ -510,18 +510,19 @@ async function loadLibrary() {
         const listOriginals = document.getElementById('libraryListOriginals');
         const listCompressed = document.getElementById('libraryListCompressed');
         
-        listOriginals.innerHTML = '';
-        listCompressed.innerHTML = '';
+        // Use a DocumentFragment to avoid multiple reflows and potential race conditions
+        const fragOriginals = document.createDocumentFragment();
+        const fragCompressed = document.createDocumentFragment();
         
         if(data.files.length === 0) {
-            const emptyState = `
+            listOriginals.innerHTML = `
                 <div class="empty-state">
                     <div class="icon">📚</div>
                     <h3>Your library is empty</h3>
                     <p>All your downloaded and compressed VODs will appear here.</p>
                 </div>
             `;
-            listOriginals.innerHTML = emptyState;
+            listCompressed.innerHTML = '';
             return;
         }
     
@@ -564,11 +565,18 @@ async function loadLibrary() {
             `;
             
             if (file.type === 'compress') {
-                listCompressed.appendChild(item);
+                fragCompressed.appendChild(item);
             } else {
-                listOriginals.appendChild(item);
+                fragOriginals.appendChild(item);
             }
         }
+        
+        // Clear and update in one go at the end
+        listOriginals.innerHTML = '';
+        listOriginals.appendChild(fragOriginals);
+        
+        listCompressed.innerHTML = '';
+        listCompressed.appendChild(fragCompressed);
     
     } catch (e) {
         console.error('Library load failed:', e);
