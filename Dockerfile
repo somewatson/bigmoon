@@ -31,14 +31,13 @@ RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master
     cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
 
 # Build dav1d from source to ensure version >= 1.0.0 and pkg-config compatibility
-RUN wget https://gitlab.com/AOMediaCodec/dav1d/-/archive/master/dav1d-master.tar.gz && \
-    tar -xvf dav1d-master.tar.gz && \
-    cd dav1d-master && \
+RUN git clone https://code.videolan.org/videolan/dav1d && \
+    cd dav1d && \
     mkdir build && cd build && \
     meson setup .. && \
     ninja -C . && \
     ninja -C . install && \
-    cd ../.. && rm -rf dav1d-master dav1d-master.tar.gz
+    cd ../.. && rm -rf dav1d
 
 # Build FFmpeg with SVT-AV1 support
 RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
