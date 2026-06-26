@@ -16,6 +16,7 @@ RUN apt-get update && apt-get install -y \
     libva-dev \
     libx264-dev \
     libx265-dev \
+    libdav1d-dev \
     libnuma-dev \
     && rm -rf /var/lib/apt/lists/*
 
@@ -39,6 +40,7 @@ RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
         --enable-libx264 \
         --enable-libx265 \
         --enable-libsvtav1 \
+        --enable-libdav1d \
         --enable-libvpl \
         --enable-vaapi \
         --enable-openssl \
@@ -71,6 +73,7 @@ RUN apt-get install -y \
     python3 \
     python3-pip \
     intel-media-va-driver-non-free \
+    libdav1d7 \
     libvpl2 \
     vainfo \
     libnuma1 \
