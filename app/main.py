@@ -330,12 +330,15 @@ def get_thumbnail(filename):
     # -vframes 1: extract one frame
     # -q:v 2: high quality
     # -vf scale=160:-1: scale to 160px width, keep aspect ratio
+    # Determine decoder based on filename to avoid hardware acceleration issues with AV1
+    decoder = ['-c:v', 'libdav1d'] if filename.startswith('compressed_AV1_') else []
+    
     try:
         import subprocess
         cmd = [
             'ffmpeg', '-y', 
-            '-hwaccel', 'none',
             '-ss', '00:00:05', 
+            *decoder,
             '-i', video_path, 
             '-vframes', '1', 
             '-q:v', '2', 
