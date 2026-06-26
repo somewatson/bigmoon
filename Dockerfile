@@ -69,11 +69,11 @@ RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] http
 RUN apt-get update && apt-get dist-upgrade -y
 
 # Install runtime dependencies
-RUN apt-get install -y \
+RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     intel-media-va-driver-non-free \
-    libdav1d7 \
+    libdav1d-dev \
     libvpl2 \
     vainfo \
     libnuma1 \
