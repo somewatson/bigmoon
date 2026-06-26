@@ -852,38 +852,22 @@ def list_library():
         encoder_type = None
         created_at = None
     
-        if task:
-            task_type = task.task_type
-            encoder_type = task.encoder_type
-            created_at = task.created_at
-            
-            if task.task_type == 'compress' and not filename.startswith('compressed_'):
-                # If it's a compression task but the file doesn't start with 'compressed_',
-                # it's actually the source file, not the compressed version.
-                task_type = 'download'
-            elif task.task_type == 'download' and filename.startswith('compressed_'):
-                # If it's a download task but the file starts with 'compressed_',
-                # it should be treated as a compressed file.
-                task_type = 'compress'
-                parts = filename.split('_', 3)
-                if len(parts) >= 4:
-                    original_filename = parts[3]
-                    orig_path = os.path.join(downloads_dir, original_filename)
-                    if os.path.exists(orig_path):
-                        try:
-                            original_size = os.path.getsize(orig_path)
-                        except OSError:
-                            pass
-            elif task.task_type == 'compress':
-                parts = filename.split('_', 3)
-                if len(parts) >= 4:
-                    original_filename = parts[3]
-                    orig_path = os.path.join(downloads_dir, original_filename)
-                    if os.path.exists(orig_path):
-                        try:
-                            original_size = os.path.getsize(orig_path)
-                        except OSError:
-                            pass
+        if filename.startswith('compressed_'):
+            task_type = 'compress'
+            parts = filename.split('_', 3)
+            if len(parts) >= 4:
+                original_filename = parts[3]
+                orig_path = os.path.join(downloads_dir, original_filename)
+                if os.path.exists(orig_path):
+                    try:
+                        original_size = os.path.getsize(orig_path)
+                    except OSError:
+                        pass
+        else:
+            task_type = 'download'
+            if task:
+                encoder_type = task.encoder_type
+                created_at = task.created_at
     
         files_data.append({
             'filename': filename,
