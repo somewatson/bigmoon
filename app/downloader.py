@@ -137,6 +137,10 @@ def download_vod(url, video_id, task_id):
                 if '[download] Destination:' in line:
                     filename = line.split('Destination: ')[-1].strip()
                     update_task_progress(task_id, filename=filename)
+                
+                if '[download] filename:' in line:
+                    filename = line.split('filename: ')[-1].strip()
+                    update_task_progress(task_id, filename=filename)
         
             process.wait()
             

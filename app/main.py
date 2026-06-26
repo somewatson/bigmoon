@@ -871,6 +871,11 @@ def list_library():
         if task:
             encoder_type = task.encoder_type
             created_at = task.created_at
+        else:
+            try:
+                created_at = datetime.fromtimestamp(os.path.getmtime(path))
+            except OSError:
+                created_at = None
     
         files_data.append({
             'filename': filename,
