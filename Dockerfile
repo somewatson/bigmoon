@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # Install build dependencies and Intel GPU repos for libvpl
 RUN apt-get update && apt-get install -y \
-    build-essential cmake git pkg-config wget yasm nasm gpg ca-certificates \
+    build-essential cmake git pkg-config wget yasm nasm gpg ca-certificates libssl-dev \
     && rm -rf /var/lib/apt/lists/*
 
 RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null
@@ -41,11 +41,12 @@ RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
         --enable-libsvtav1 \
         --enable-libvpl \
         --enable-vaapi \
+        --enable-openssl \
         --extra-cflags="-I/usr/local/include" \
         --extra-ldflags="-L/usr/local/lib" && \
-    make -j$(nproc) && \
-    make install && \
-    cd .. && rm -rf ffmpeg-snapshot*
+        make -j$(nproc) && \
+        make install && \
+        cd .. && rm -rf ffmpeg-snapshot*
 
 # --- Stage 2: Final Image ---
 FROM ubuntu:22.04
