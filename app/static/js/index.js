@@ -490,74 +490,91 @@ checkboxes.forEach(cb => {
 });
 }
 
-async function loadLibrary() {
-try {
-    const response = await apiFetch('/api/library');
-    const data = await response.json();
-    const listOriginals = document.getElementById('libraryListOriginals');
-    const listCompressed = document.getElementById('libraryListCompressed');
-    
-    listOriginals.innerHTML = '';
-    listCompressed.innerHTML = '';
-    
-    if(data.files.length === 0) {
-        const emptyState = `
-            <div class="empty-state">
-                <div class="icon">📚</div>
-                <h3>Your library is empty</h3>
-                <p>All your downloaded and compressed VODs will appear here.</p>
-            </div>
-        `;
-        listOriginals.innerHTML = emptyState;
-        return;
+async function checkThumbnailStatus(filename) {
+    try {
+        const response = await fetch(`/api/thumbnails/${encodeURIComponent(filename)}`);
+        if (response.status === 206) {
+            const data = await response.json();
+            return data.status === 'corrupted';
+        }
+    } catch (e) {
+        console.error(`Status check failed for ${filename}:`, e);
     }
+    return false;
+}
 
-    data.files.forEach(file => {
-        const item = document.createElement('div');
-        item.className = 'file-item';
+async function loadLibrary() {
+    try {
+        const response = await apiFetch('/api/library');
+        const data = await response.json();
+        const listOriginals = document.getElementById('libraryListOriginals');
+        const listCompressed = document.getElementById('libraryListCompressed');
         
-        let sizeInfo = `Size: ${file.size}`;
-        if (file.savings) {
-            sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
-        }
+        listOriginals.innerHTML = '';
+        listCompressed.innerHTML = '';
         
-        const encoderBadge = file.encoder_type 
-            ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
-            : '';
-        
-        const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
-        const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
-
-        item.innerHTML = `
-            <div class="checkbox-wrapper">
-                <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
-            </div>
-            <img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">
-            <div class="file-details">
-                <h4 class="file-name">${file.filename}</h4>
-                <div class="file-meta">
-                    <span class="meta-item">${sizeInfo}</span>
-                    <span class="meta-item">• Type: ${file.type}</span>
-                    <span class="meta-item">• ${createdDate}</span>
-                    ${encoderBadge}
+        if(data.files.length === 0) {
+            const emptyState = `
+                <div class="empty-state">
+                    <div class="icon">📚</div>
+                    <h3>Your library is empty</h3>
+                    <p>All your downloaded and compressed VODs will appear here.</p>
                 </div>
-            </div>
-            <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
-        `;
-
-
-        
-        if (file.type === 'compress') {
-            listCompressed.appendChild(item);
-        } else {
-            listOriginals.appendChild(item);
+            `;
+            listOriginals.innerHTML = emptyState;
+            return;
         }
-    });
+    
+        for (const file of data.files) {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            
+            let sizeInfo = `Size: ${file.size}`;
+            if (file.savings) {
+                sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
+            }
+            
+            const encoderBadge = file.encoder_type 
+                ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
+                : '';
+            
+            const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
+            const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
+            
+            const isIncomplete = await checkThumbnailStatus(file.filename);
+            const thumbHtml = isIncomplete 
+                ? `<div class="thumb-preview incomplete" style="background: #333; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.6rem; color: var(--text-dim); border: 1px dashed #555;">⚠️<br>Incomplete</div>`
+                : `<img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">`;
 
-} catch (e) {
-    console.error('Library load failed:', e);
+            item.innerHTML = `
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
+                </div>
+                ${thumbHtml}
+                <div class="file-details">
+                    <h4 class="file-name">${file.filename}</h4>
+                    <div class="file-meta">
+                        <span class="meta-item">${sizeInfo}</span>
+                        <span class="meta-item">• Type: ${file.type}</span>
+                        <span class="meta-item">• ${createdDate}</span>
+                        ${encoderBadge}
+                    </div>
+                </div>
+                <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
+            `;
+            
+            if (file.type === 'compress') {
+                listCompressed.appendChild(item);
+            } else {
+                listOriginals.appendChild(item);
+            }
+        }
+    
+    } catch (e) {
+        console.error('Library load failed:', e);
+    }
 }
-}
+
 
 
 async function loadFavorites() {
