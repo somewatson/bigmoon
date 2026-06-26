@@ -152,7 +152,7 @@
         <a class="nav-item {% if request.args.get('tab') == 'favorites' %}active{% endif %}" href="{{ url_for('index', tab='favorites') }}" id="nav-favorites" data-tab="favorites"><span>❤️</span> <span>Favorites</span></a>
         <a class="nav-item {% if request.args.get('tab') == 'automation' %}active{% endif %}" href="{{ url_for('index', tab='automation') }}" id="nav-automation" data-tab="automation"><span>🤖</span> <span>Auto-Download</span></a>
         <a class="nav-item {% if request.args.get('tab') == 'library' %}active{% endif %}" href="{{ url_for('index', tab='library') }}" id="nav-library" data-tab="library"><span>📚</span> <span>My Library</span></a>
-        <a class="nav-item {% if request.args.get('tab') == 'compress' %}active{% endif %}" href="{{ url_for('index', tab='compress') }}" id="nav-compress" data-tab="compress"><span>⚡</span> <span>Compress (QSV)</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'compress' %}active{% endif %}" href="{{ url_for('index', tab='compress') }}" id="nav-compress" data-tab="compress"><span>⚡</span> <span>Compress</span></a>
         <a class="nav-item {% if request.args.get('tab') == 'tasks' %}active{% endif %}" href="{{ url_for('index', tab='tasks') }}" id="nav-tasks" data-tab="tasks"><span>⏳</span> <span>Active Tasks</span></a>
         
         {% if current_user.role == 'admin' %}
