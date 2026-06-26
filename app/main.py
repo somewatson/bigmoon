@@ -854,6 +854,8 @@ def list_library():
     
         if filename.startswith('compressed_'):
             task_type = 'compress'
+            # Filename format: compressed_{codec}_{preset}_{original_filename}
+            # Split only 3 times to preserve underscores in the original filename
             parts = filename.split('_', 3)
             if len(parts) >= 4:
                 original_filename = parts[3]
