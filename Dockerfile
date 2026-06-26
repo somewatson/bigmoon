@@ -29,7 +29,7 @@ RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master
     make install && \
     cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
 
-# Build FFmpeg with QSV and SVT-AV1 support
+# Build FFmpeg with SVT-AV1 support
 RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
     tar -xjf ffmpeg-snapshot.tar.bz2 && \
     cd $(tar -tf ffmpeg-snapshot.tar.bz2 | head -1 | cut -f1 -d'/') && \
