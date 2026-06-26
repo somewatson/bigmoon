@@ -331,15 +331,16 @@ def get_thumbnail(filename):
     # -q:v 2: high quality
     # -vf scale=160:-1: scale to 160px width, keep aspect ratio
     # Determine decoder based on filename to avoid hardware acceleration issues with AV1
-    decoder = ['-c:v', 'libdav1d'] if filename.startswith('compressed_AV1_') else []
+    # Use the native 'av1' decoder instead of 'libdav1d' which is missing in production
+    decoder = ['-c:v', 'av1'] if filename.startswith('compressed_AV1_') else []
     
     try:
         import subprocess
         cmd = [
             'ffmpeg', '-y', 
             '-ss', '00:00:05', 
-            *decoder,
             '-i', video_path, 
+            *decoder,
             '-vframes', '1', 
             '-q:v', '2', 
             '-vf', 'scale=160:-1', 
