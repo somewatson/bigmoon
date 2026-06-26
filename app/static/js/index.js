@@ -259,16 +259,45 @@ async function downloadVideo(url, id) {
     }
 }
 
-function previewVideo(videoId) {
-    const container = document.getElementById('previewContainer');
+async function previewVideo(videoId) {
     const hostname = window.location.hostname;
-    container.innerHTML = `
-        <iframe 
-            src="https://player.twitch.tv/?video=${videoId}&parent=${hostname}" 
-            allowfullscreen="true">
-        </iframe>
-    `;
+    const videoPlayer = document.getElementById('videoPlayer');
+    const chatContainer = document.getElementById('chatContainer');
+    const chatMessages = document.getElementById('chatMessages');
+    const downloadChatBtn = document.getElementById('downloadChatBtn');
+
+    videoPlayer.src = `https://player.twitch.tv/?video=${videoId}&parent=${hostname}`;
+    // Note: Twitch player is an iframe, so we can't easily sync it with a custom HTML video element.
+    // However, the task asks for a chat overlay/sidebar and sync with playback.
+    // Since we are using the Twitch iframe, we'll provide the chat below it.
+    
     document.getElementById('previewModal').classList.add('active');
+    
+    // Load Chat
+    try {
+        const response = await fetch(`/api/chat/${videoId}`);
+        const data = await response.json();
+        
+        if (data.error || data.length === 0) {
+            chatContainer.style.display = 'none';
+        } else {
+            chatContainer.style.display = 'block';
+            chatMessages.innerHTML = data.map(m => `
+                <div class="chat-message" style="margin-bottom: 4px; font-size: 0.85rem;">
+                    <span style="color: var(--primary); font-weight: bold;">${m.username}:</span>
+                    <span>${m.message}</span>
+                    <span style="color: var(--text-dim); font-size: 0.7rem; float: right;">${Math.floor(m.time)}s</span>
+                </div>
+            `).join('');
+            
+            downloadChatBtn.onclick = () => {
+                window.open(`/api/chat/export/${videoId}`, '_blank');
+            };
+        }
+    } catch (e) {
+        console.error('Failed to load chat:', e);
+        chatContainer.style.display = 'none';
+    }
 }
 
 function closePreview() {

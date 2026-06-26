@@ -17,8 +17,8 @@ try:
 except ImportError:
     psutil = None
 
-from models import db, User, Favorite, DownloadTask, MonitoredChannel
-from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path
+from models import db, User, Favorite, DownloadTask, MonitoredChannel, ChatMessage
+from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path, start_chat_download_async
 
 
 
@@ -496,6 +496,7 @@ def check_for_new_vods():
                     db.session.commit()
                     
                     start_download_async(video['url'], video_id, task.id)
+                    start_chat_download_async(video_id, task.id)
 
             logging.info("Finished checking all monitored channels.")
         except Exception as e:
@@ -771,6 +772,7 @@ def download_video():
     db.session.commit()
     
     start_download_async(url, video_id, task.id)
+    start_chat_download_async(video_id, task.id)
     return jsonify({'message': 'Download started in background', 'taskId': task.id})
 
 @app.route('/api/compress', methods=['POST'])
@@ -975,6 +977,40 @@ def bulk_compress_files():
         message += f'. Skipped {len(skipped_files)} files that already had compressed copies.'
         
     return jsonify({'message': message, 'taskIds': task_ids, 'skipped': skipped_files})
+
+@app.route('/api/chat/<video_id>')
+@login_required
+def get_chat(video_id):
+    task = DownloadTask.query.filter_by(video_id=video_id).first()
+    if not task:
+        return jsonify({'error': 'Video not found'}), 404
+    
+    messages = ChatMessage.query.filter_by(task_id=task.id).order_by(ChatMessage.time_in_seconds).all()
+    return jsonify([{
+        'username': m.username,
+        'message': m.message,
+        'time': m.time_in_seconds
+    } for m in messages])
+
+@app.route('/api/chat/export/<video_id>')
+@login_required
+def export_chat(video_id):
+    task = DownloadTask.query.filter_by(video_id=video_id).first()
+    if not task:
+        return jsonify({'error': 'Video not found'}), 404
+    
+    messages = ChatMessage.query.filter_by(task_id=task.id).order_by(ChatMessage.time_in_seconds).all()
+    data = [{
+        'username': m.username,
+        'message': m.message,
+        'time_in_seconds': m.time_in_seconds,
+        'timestamp': m.timestamp.isoformat() if m.timestamp else None
+    } for m in messages]
+    
+    import json
+    from flask import Response
+    return Response(json.dumps(data, indent=2), mimetype='application/json', 
+                    headers={'Content-Disposition': f'attachment; filename=chat_{video_id}.json'})
 
 @app.route('/downloads/<path:filename>')
 @login_required

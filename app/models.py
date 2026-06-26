@@ -42,6 +42,5 @@ class MonitoredChannel(db.Model):
     auto_compress = db.Column(db.Boolean, default=False)
     compression_presets = db.Column(db.String(255), default='')  # Comma-separated presets
     target_codec = db.Column(db.String(20), default='AV1')
-    delete_original = db.Column(db.Boolean, default=False)
-    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    delete_original = db.Column(db.Boolean, default=False)\n    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())\n\nclass ChatMessage(db.Model):\n    id = db.Column(db.Integer, primary_key=True)\n    task_id = db.Column(db.Integer, db.ForeignKey('download_task.id'), nullable=False)\n    username = db.Column(db.String(100))\n    message = db.Column(db.Text)\n    time_in_seconds = db.Column(db.Float)\n    timestamp = db.Column(db.DateTime)
 
