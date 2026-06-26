@@ -350,8 +350,13 @@ def get_thumbnail(filename):
         subprocess.run(cmd, check=True, capture_output=True, timeout=30)
         return send_from_directory(thumb_dir, thumb_filename)
     except subprocess.CalledProcessError as e:
-        app.logger.error(f"FFmpeg failed for {filename}: {e.stderr.decode() if e.stderr else str(e)}")
-        return jsonify({'error': f'FFmpeg failure: {e.stderr.decode() if e.stderr else str(e)}'}), 500
+        error_msg = e.stderr.decode() if e.stderr else str(e)
+        app.logger.error(f"FFmpeg failed for {filename}: {error_msg}")
+        
+        if "moov atom not found" in error_msg or "Invalid data found" in error_msg:
+            return jsonify({'error': 'Incomplete file', 'status': 'corrupted'}), 206
+            
+        return jsonify({'error': f'FFmpeg failure: {error_msg}'}), 500
     except subprocess.TimeoutExpired:
         app.logger.error(f"Thumbnail generation timed out for {filename}")
         return jsonify({'error': 'Thumbnail generation timed out'}), 504
