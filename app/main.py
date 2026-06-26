@@ -335,6 +335,7 @@ def get_thumbnail(filename):
         cmd = [
             'ffmpeg', '-y', 
             '-ss', '00:00:05', 
+            '-c:v', 'libdav1d',
             '-i', video_path, 
             '-vframes', '1', 
             '-q:v', '2', 
