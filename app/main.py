@@ -310,7 +310,9 @@ def get_thumbnail(filename):
         except Exception as e:
             return jsonify({'error': f'Could not create thumbnail directory: {str(e)}'}), 500
 
-    thumb_filename = f"{filename}.jpg"
+    # Create a cleaner thumbnail filename (replace extension with .jpg)
+    base_filename = os.path.splitext(filename)[0]
+    thumb_filename = f"{base_filename}.jpg"
     thumb_path = os.path.join(thumb_dir, thumb_filename)
     video_path = os.path.join(downloads_dir, filename)
 
@@ -341,6 +343,9 @@ def get_thumbnail(filename):
         ]
         subprocess.run(cmd, check=True, capture_output=True, timeout=30)
         return send_from_directory(thumb_dir, thumb_filename)
+    except subprocess.CalledProcessError as e:
+        app.logger.error(f"FFmpeg failed for {filename}: {e.stderr.decode() if e.stderr else str(e)}")
+        return jsonify({'error': f'FFmpeg failure: {e.stderr.decode() if e.stderr else str(e)}'}), 500
     except subprocess.TimeoutExpired:
         app.logger.error(f"Thumbnail generation timed out for {filename}")
         return jsonify({'error': 'Thumbnail generation timed out'}), 504
