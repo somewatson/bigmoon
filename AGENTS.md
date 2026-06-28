@@ -1,5 +1,8 @@
 # AGENTS.md - Big Moon Guidance
 
+## Project Tracking
+- **Todo List**: `TODO.md`
+
 ## Developer Commands
 - **Run App (Local)**: `python app/main.py --debug`
 - **Run Tests**: `export FLASK_ENV=testing && pytest tests/test_app.py`
