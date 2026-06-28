@@ -7,7 +7,7 @@ let apiRetryCount = 0;
 
 async function apiFetch(url, options = {}) {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
+    const timeoutId = setTimeout(() => controller.abort(), 15000); // 15 second timeout
 
     options.signal = controller.signal;
 
