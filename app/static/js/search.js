@@ -123,8 +123,21 @@ async function previewVideo(identifier) {
     
     document.getElementById('previewModal').classList.add('active');
     
+    
+    let chatIdentifier = identifier;
+    const videoIdMatch = identifier.match(/\[(v\d+)\]/);
+    if (videoIdMatch) {
+        chatIdentifier = videoIdMatch[1];
+    } else if (identifier.includes('.') || identifier.length > 20) {
+        chatIdentifier = null;
+    }
+
     try {
-        const response = await fetch(`/api/chat/${identifier}`);
+        if (!chatIdentifier) {
+            chatContainer.style.display = 'none';
+            return;
+        }
+        const response = await fetch(`/api/chat/${chatIdentifier}`);
         const data = await response.json();
         
         if (data.error || data.length === 0) {
@@ -140,7 +153,7 @@ async function previewVideo(identifier) {
             `).join('');
             
             downloadChatBtn.onclick = () => {
-                window.open(`/api/chat/export/${identifier}`, '_blank');
+                window.open(`/api/chat/export/${chatIdentifier}`, '_blank');
             };
         }
     } catch (e) {
@@ -153,3 +166,4 @@ window.searchVideos = searchVideos;
 window.toggleFavorite = toggleFavorite;
 window.downloadVideo = downloadVideo;
 window.previewVideo = previewVideo;
+window.closePreview = closePreview;
