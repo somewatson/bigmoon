@@ -418,6 +418,41 @@ def system_metrics():
         return jsonify({'error': str(e)}), 500
 
 
+@app.route('/api/tasks/retry/<int:task_id>', methods=['POST'])
+@login_required
+def retry_task(task_id):
+    task = DownloadTask.query.get(task_id)
+    if not task or task.user_id != current_user.id:
+        return jsonify({'error': 'Task not found or unauthorized'}), 404
+    
+    if task.status not in ['error', 'cancelled']:
+        return jsonify({'error': 'Only failed or cancelled tasks can be retried'}), 400
+
+    if task.task_type == 'download':
+        # For downloads, we need the original URL. We can't store it in DB’s DownloadTask, 
+        # so we'd need to find it or ask the user. 
+        # Actually, let's check if we can retrieve it from logs or if we should only retry compression.
+        return jsonify({'error': 'Direct download retry not supported via API yet. Please re-add the URL.'}), 400
+    
+    elif task.task_type == 'compress':
+        # Compression tasks have the input filename stored
+        if not task.filename:
+            return jsonify({'error': 'Input file missing, cannot retry compression'}), 400
+        
+        # Recover preset and codec from filename if possible, or use defaults
+        # Filename format: compressed_{codec}_{preset}_{original_filename}
+        # However, the original task record is what we are retrying.
+        # Since we don't store preset/codec in DownloadTask, we'll use 'balanced' and 'H.264' as defaults
+        # or try to parse them if this was a previous failed attempt.
+        
+        # For now, let's implement the compression retry with defaults or look for a way to store them.
+        # A better way is to create a NEW task and link it, but here we just restart the process.
+        start_compress_async(task.filename, 'balanced', task.id, current_user.id, 'H.264')
+        update_task_progress(task.id, 'pending', progress=0.0)
+        return jsonify({'message': 'Compression retry started'})
+
+    return jsonify({'error': 'Unknown task type'}), 400
+
 @app.route('/api/tasks/cancel/<int:task_id>', methods=['POST'])
 @login_required
 def cancel_task_route(task_id):

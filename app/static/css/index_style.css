@@ -346,17 +346,21 @@ button:hover { background: var(--primary-hover); }
 
 .btn-download { 
     background: var(--success); 
-    color: white; 
+    color: #000; 
     text-decoration: none; 
     padding: 6px 12px; 
     border-radius: 6px; 
     font-size: 0.8rem; 
-    font-weight: bold; 
+    font-weight: 800; 
     transition: 0.2s; 
     white-space: nowrap;
     flex-shrink: 0;
 }
-.btn-download:hover { filter: brightness(1.1); transform: translateY(-1px); }
+.btn-download:hover { 
+    filter: brightness(1.2); 
+    transform: translateY(-1px); 
+    color: #000;
+}
 
 .compress-controls { display: flex; gap: 10px; align-items: center; }
 select { padding: 6px; border-radius: 4px; background: #121212; color: white; border: 1px solid var(--border); font-size: 0.85rem; }

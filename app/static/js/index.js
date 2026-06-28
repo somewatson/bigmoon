@@ -1031,6 +1031,21 @@ function showToast(message, type = 'info') {
     }, 5000);
 }
 
+async function retryTask(taskId) {
+    try {
+        const response = await apiFetch(`/api/tasks/retry/${taskId}`, { method: 'POST' });
+        const data = await response.json();
+        if (data.message) {
+            showToast(data.message, 'success');
+            loadTasks();
+        } else {
+            showToast('Error: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showToast('An error occurred while retrying the task.', 'error');
+    }
+}
+
 async function loadTasks() {
     try {
         const response = await apiFetch('/api/tasks');
@@ -1076,7 +1091,13 @@ async function loadTasks() {
                 const fileLink = task.filename ? `<a class="download-link" href="/downloads/${task.filename}">Download File</a>` : `<span style="color: var(--text-dim); font-size: 0.8rem;">File not ready...</span>`;
                 actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--success); font-size: 1.2rem;">✅</span>${fileLink}</div>`;
             } else if(task.status === 'error') {
-                actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--error); font-size: 1.2rem;">❌</span><span style="color: var(--error); font-size: 0.8rem;">Failed</span></div>`;
+                actionHtml = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="color: var(--error); font-size: 1.2rem;">❌</span>
+                        <span style="color: var(--error); font-size: 0.8rem;">Failed</span>
+                        ${task.type === 'compress' ? `<button onclick="retryTask(${task.id})" style="background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.7rem; padding: 2px 6px;">Retry</button>` : ''}
+                    </div>
+                `;
             } else {
                 actionHtml = `
                     <div style="display: flex; gap: 10px; align-items: center;">
@@ -1137,6 +1158,7 @@ window.compressFile = compressFile;
 window.loadTasks = loadTasks;
 window.clearFailedTasks = clearFailedTasks;
 window.cancelTask = cancelTask;
+window.retryTask = retryTask;
 window.toggleSidebar = toggleSidebar;
 
 function toggleAdminMenu() {
