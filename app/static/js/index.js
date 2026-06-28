@@ -977,6 +977,7 @@ async function loadFiles() {
     } catch (e) {
         console.error('Load files failed:', e);
     }
+}
 
 async function compressFile(file, codec) {
     const preset = document.getElementById(`preset-${encodeURIComponent(file)}`).value;
