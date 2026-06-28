@@ -600,7 +600,10 @@ async function loadLibrary() {
                         ${encoderBadge}
                     </div>
                 </div>
-                <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
+                    ${file.video_id ? `<button onclick="previewVideo('${file.video_id}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
+                </div>
             `;
             
             if (file.type === 'compress') {
@@ -918,52 +921,61 @@ async function confirmBulkCompress() {
 }
 
 
-async function loadFiles() {
-const response = await fetch('/api/files');
-const data = await response.json();
-const list = document.getElementById('fileList');
-list.innerHTML = '';
-data.files.filter(file => !file.startsWith('compressed_')).forEach(file => {
-        const item = document.createElement('div');
-        item.className = 'file-item';
-        
-        const thumbUrl = `/api/thumbnails/${encodeURIComponent(file)}`;
-        
-        item.innerHTML = `
-            <div class="checkbox-wrapper">
-                <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file)}" onchange="handleFileSelection(this)">
-            </div>
-            <img src="${thumbUrl}" class="thumb-preview" style="width: 120px; height: 68px;" alt="preview" onerror="this.classList.add('error')">
-            <div class="file-details">
-                <h4 class="file-name">${file}</h4>
-                <div class="file-meta">
-                        <span class="meta-item">Ready for compression</span>
+    try {
+        const response = await fetch('/api/files');
+        const data = await response.json();
+        const list = document.getElementById('fileList');
+        list.innerHTML = '';
+        data.files.filter(file => !file.startsWith('compressed_')).forEach(fileData => {
+            const file = typeof fileData === 'string' ? fileData : fileData.filename;
+            const size = fileData.size || 'Unknown';
+            const created = fileData.created_at ? new Date(fileData.created_at).toLocaleString() : 'Unknown Date';
+            const videoId = fileData.video_id;
+
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            
+            const thumbUrl = `/api/thumbnails/${encodeURIComponent(file)}`;
+            
+            item.innerHTML = `
+                <div class="checkbox-wrapper">
+                    <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file)}" onchange="handleFileSelection(this)">
                 </div>
-            </div>
-            <div class="compress-controls">
-                <select id="codec-${encodeURIComponent(file)}">
-                    <option value="AV1" selected>AV1</option>
-                    <option value="H.264">H.264</option>
-                    <option value="H.265">H.265</option>
-                    <option value="x264">x264 (SW)</option>
-                </select>
-                <select id="preset-${encodeURIComponent(file)}">
-                    <option value="fast">Fast</option>
-                    <option value="balanced" selected>Balanced</option>
-                    <option value="high">High Quality</option>
-                </select>
-                <button class="compress-btn" data-filename="${encodeURIComponent(file)}">Compress</button>
-            </div>
-        `;
-        
-        item.querySelector('.compress-btn').onclick = () => {
-            const codec = document.getElementById(`codec-${encodeURIComponent(file)}`).value;
-            compressFile(decodeURIComponent(file), codec);
-        };
-        
-        list.appendChild(item);
-});
-}
+                <img src="${thumbUrl}" class="thumb-preview" style="width: 120px; height: 68px;" alt="preview" onerror="this.classList.add('error')">
+                <div class="file-details">
+                    <h4 class="file-name">${file}</h4>
+                    <div class="file-meta">
+                            <span class="meta-item">Size: ${size}</span>
+                            <span class="meta-item">• ${created}</span>
+                    </div>
+                </div>
+                <div class="compress-controls">
+                    ${videoId ? `<button onclick="previewVideo('${videoId}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s; margin-right: 10px;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
+                    <select id="codec-${encodeURIComponent(file)}">
+                        <option value="AV1" selected>AV1</option>
+                        <option value="H.264">H.264</option>
+                        <option value="H.265">H.265</option>
+                        <option value="x264">x264 (SW)</option>
+                    </select>
+                    <select id="preset-${encodeURIComponent(file)}">
+                        <option value="fast">Fast</option>
+                        <option value="balanced" selected>Balanced</option>
+                        <option value="high">High Quality</option>
+                    </select>
+                    <button class="compress-btn" data-filename="${encodeURIComponent(file)}">Compress</button>
+                </div>
+            `;
+            
+            item.querySelector('.compress-btn').onclick = () => {
+                const codec = document.getElementById(`codec-${encodeURIComponent(file)}`).value;
+                compressFile(decodeURIComponent(file), codec);
+            };
+            
+            list.appendChild(item);
+        });
+    } catch (e) {
+        console.error('Load files failed:', e);
+    }
 
 async function compressFile(file, codec) {
     const preset = document.getElementById(`preset-${encodeURIComponent(file)}`).value;
@@ -1087,10 +1099,11 @@ async function loadTasks() {
             item.className = 'task-item';
             
             let actionHtml = '';
-            if(task.status === 'completed') {
-                const fileLink = task.filename ? `<a class="download-link" href="/downloads/${task.filename}">Download File</a>` : `<span style="color: var(--text-dim); font-size: 0.8rem;">File not ready...</span>`;
-                actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--success); font-size: 1.2rem;">✅</span>${fileLink}</div>`;
-            } else if(task.status === 'error') {
+                if(task.status === 'completed') {
+                    const fileLink = task.filename ? `<a class="btn-download" href="/downloads/${task.filename}">Download File</a>` : `<span style="color: var(--text-dim); font-size: 0.8rem;">File not ready...</span>`;
+                    const previewBtn = task.video_id ? `<button onclick="previewVideo('${task.video_id}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : '';
+                    actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--success); font-size: 1.2rem;">✅</span>${fileLink}${previewBtn}</div>`;
+                } else if(task.status === 'error') {
                 actionHtml = `
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="color: var(--error); font-size: 1.2rem;">❌</span>
