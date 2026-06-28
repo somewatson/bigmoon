@@ -503,18 +503,52 @@ async function checkThumbnailStatus(filename) {
     return false;
 }
 
+window.loadLibraryRequestId = 0;
+
+function toggleLibraryLoading(isLoading) {
+    const listOriginals = document.getElementById('libraryListOriginals');
+    const listCompressed = document.getElementById('libraryListCompressed');
+    
+    if (isLoading) {
+        const skeletons = Array.from({ length: 5 }).map(() => `
+            <div class="skeleton-row">
+                <div class="skeleton skeleton-thumb"></div>
+                <div class="skeleton-text">
+                    <div class="skeleton skeleton-line"></div>
+                    <div class="skeleton skeleton-line short"></div>
+                </div>
+                <div class="skeleton skeleton-btn"></div>
+            </div>
+        `).join('');
+        
+        listOriginals.innerHTML = skeletons;
+        listCompressed.innerHTML = '';
+    } else {
+        // The actual data replacement happens in loadLibrary
+    }
+}
+
 async function loadLibrary() {
+    const listOriginals = document.getElementById('libraryListOriginals');
+    const listCompressed = document.getElementById('libraryListCompressed');
+
+    // Concurrency guard
+    const requestId = ++window.loadLibraryRequestId;
+    
+    toggleLibraryLoading(true);
+
     try {
         const response = await apiFetch('/api/library');
         const data = await response.json();
-        const listOriginals = document.getElementById('libraryListOriginals');
-        const listCompressed = document.getElementById('libraryListCompressed');
+        
+        if (requestId !== window.loadLibraryRequestId) return;
         
         // Use a DocumentFragment to avoid multiple reflows and potential race conditions
         const fragOriginals = document.createDocumentFragment();
         const fragCompressed = document.createDocumentFragment();
         
         if(data.files.length === 0) {
+            toggleLibraryLoading(false);
             listOriginals.innerHTML = `
                 <div class="empty-state">
                     <div class="icon">📚</div>
@@ -526,7 +560,13 @@ async function loadLibrary() {
             return;
         }
     
-        for (const file of data.files) {
+        // Process thumbnail status checks concurrently
+        const fileDataWithStatus = await Promise.all(data.files.map(async (file) => {
+            const isIncomplete = await checkThumbnailStatus(file.filename);
+            return { ...file, isIncomplete };
+        }));
+
+        for (const file of fileDataWithStatus) {
             const item = document.createElement('div');
             item.className = 'file-item';
             
@@ -542,11 +582,10 @@ async function loadLibrary() {
             const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
             const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
             
-            const isIncomplete = await checkThumbnailStatus(file.filename);
-            const thumbHtml = isIncomplete 
+            const thumbHtml = file.isIncomplete 
                 ? `<div class="thumb-preview incomplete" style="background: #333; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.6rem; color: var(--text-dim); border: 1px dashed #555;">⚠️<br>Incomplete</div>`
                 : `<img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">`;
-
+    
             item.innerHTML = `
                 <div class="checkbox-wrapper">
                     <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
@@ -571,6 +610,10 @@ async function loadLibrary() {
             }
         }
         
+        if (requestId !== window.loadLibraryRequestId) return;
+
+        toggleLibraryLoading(false);
+
         // Clear and update in one go at the end
         listOriginals.innerHTML = '';
         listOriginals.appendChild(fragOriginals);
@@ -579,9 +622,11 @@ async function loadLibrary() {
         listCompressed.appendChild(fragCompressed);
     
     } catch (e) {
+        toggleLibraryLoading(false);
         console.error('Library load failed:', e);
     }
 }
+
 
 
 
@@ -1049,10 +1094,11 @@ async function loadTasks() {
                     <div class="task-info">
                         <div style="flex: 1;">
                             <h4>${task.filename || 'VOD ' + (task.video_id || '')} ${encoderBadge} <span style="color: var(--text-dim); font-weight: normal; font-size: 0.8rem;">(${task.size})</span></h4>
-                            <div class="progress-container">
-                                <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%"></div>
-                                <span class="progress-text">${task.progress}%</span>
-                            </div>
+                                 <div class="progress-container" style="position: relative; background: #333; height: 12px; border-radius: 6px; overflow: hidden; margin: 10px 0;">
+                                     <div class="progress-bar ${task.status === 'downloading' || task.status === 'processing' ? 'active' : ''}" style="width: ${task.progress}%; height: 100%; background: var(--primary); transition: width 0.5s ease;"></div>
+                                     <span class="progress-text" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.7rem; font-weight: bold; color: white; text-shadow: 0 0 2px black; pointer-events: none;">${task.progress}%</span>
+                                 </div>
+
                             <button onclick="viewTaskLogs(${task.id})" style="background: none; color: var(--primary); border: none; font-size: 0.7rem; cursor: pointer; padding: 0; margin-top: 4px; text-decoration: underline;" data-tooltip="View detailed processing logs">View Logs</button>
                         </div>
                     </div>
