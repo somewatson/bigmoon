@@ -1032,7 +1032,9 @@ def bulk_compress_files():
 @app.route('/api/chat/<video_id>')
 @login_required
 def get_chat(video_id):
-    task = DownloadTask.query.filter_by(video_id=video_id).first()
+    # Strip leading 'v' if present to match numeric ID in database
+    clean_id = video_id[1:] if video_id.startswith('v') else video_id
+    task = DownloadTask.query.filter_by(video_id=clean_id).first()
     if not task:
         return jsonify({'error': 'Video not found'}), 404
     
@@ -1046,7 +1048,9 @@ def get_chat(video_id):
 @app.route('/api/chat/export/<video_id>')
 @login_required
 def export_chat(video_id):
-    task = DownloadTask.query.filter_by(video_id=video_id).first()
+    # Strip leading 'v' if present to match numeric ID in database
+    clean_id = video_id[1:] if video_id.startswith('v') else video_id
+    task = DownloadTask.query.filter_by(video_id=clean_id).first()
     if not task:
         return jsonify({'error': 'Video not found'}), 404
     
@@ -1067,12 +1071,15 @@ def export_chat(video_id):
 @login_required
 def preview_video(filename):
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    # Sanitize filename to prevent path traversal and handle full paths sent by frontend
+    safe_filename = os.path.basename(filename)
+    
     # Verify user owns this file
-    task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
+    task = DownloadTask.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
     if not task and current_user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
     
-    return send_from_directory(downloads_dir, filename)
+    return send_from_directory(downloads_dir, safe_filename)
 
 @app.route('/downloads/<path:filename>')
 @login_required
