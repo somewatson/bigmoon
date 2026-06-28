@@ -1,7 +1,7 @@
 async function populateFavAutomationGrid() {
     const grid = document.getElementById('favAutomationGrid');
     try {
-        const response = await fetch('/api/favorites');
+        const response = await apiFetch('/api/favorites');
         const data = await response.json();
         grid.innerHTML = '';
         
@@ -36,7 +36,7 @@ async function populateFavAutomationGrid() {
 async function addFavToAutomation(channel, event) {
     event.stopPropagation();
     try {
-        const response = await fetch('/api/monitored', {
+        const response = await apiFetch('/api/monitored', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channel_name: channel })
@@ -55,7 +55,7 @@ async function addFavToAutomation(channel, event) {
 
 async function loadMonitored() {
     try {
-        const response = await fetch('/api/monitored');
+        const response = await apiFetch('/api/monitored');
         const data = await response.json();
         const list = document.getElementById('automationList');
         list.innerHTML = '';
@@ -138,7 +138,7 @@ async function addMonitoredChannel() {
     if (!channel_name) return;
 
     try {
-        const response = await fetch('/api/monitored', {
+        const response = await apiFetch('/api/monitored', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ channel_name })
@@ -158,7 +158,7 @@ async function addMonitoredChannel() {
 
 async function updateMonitored(id, settings) {
     try {
-        await fetch('/api/monitored', {
+        await apiFetch('/api/monitored', {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id, ...settings })
@@ -171,7 +171,7 @@ async function updateMonitored(id, settings) {
 async function deleteMonitored(id) {
     if (!confirm('Stop monitoring this channel?')) return;
     try {
-        await fetch('/api/monitored', {
+        await apiFetch('/api/monitored', {
             method: 'DELETE',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ id })
