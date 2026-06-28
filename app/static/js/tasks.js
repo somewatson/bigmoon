@@ -40,7 +40,7 @@ async function loadTasks() {
             let actionHtml = '';
                 if(task.status === 'completed') {
                     const fileLink = task.filename ? `<a class="btn-download" href="/downloads/${task.filename}">Download File</a>` : `<span style="color: var(--text-dim); font-size: 0.8rem;">File not ready...</span>`;
-                    const previewBtn = task.video_id ? `<button onclick="previewVideo('${task.video_id}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : '';
+                    const previewBtn = task.filename ? `<button onclick="previewVideo('${task.filename}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : '';;
                     actionHtml = `<div style="display: flex; align-items: center; gap: 8px;"><span style="color: var(--success); font-size: 1.2rem;">✅</span>${fileLink}${previewBtn}</div>`;
                 } else if(task.status === 'error') {
                 actionHtml = `

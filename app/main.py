@@ -1063,6 +1063,17 @@ def export_chat(video_id):
     return Response(json.dumps(data, indent=2), mimetype='application/json', 
                     headers={'Content-Disposition': f'attachment; filename=chat_{video_id}.json'})
 
+@app.route('/api/preview/<path:filename>')
+@login_required
+def preview_video(filename):
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    # Verify user owns this file
+    task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
+    if not task and current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    return send_from_directory(downloads_dir, filename)
+
 @app.route('/downloads/<path:filename>')
 @login_required
 def download_file(filename):

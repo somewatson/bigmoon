@@ -86,19 +86,45 @@ async function downloadVideo(url, id) {
     }
 }
 
-async function previewVideo(videoId) {
+async function previewVideo(identifier) {
     const hostname = window.location.hostname;
-    const videoPlayer = document.getElementById('videoPlayer');
+    const wrapper = document.getElementById('videoPlayerWrapper');
     const chatContainer = document.getElementById('chatContainer');
     const chatMessages = document.getElementById('chatMessages');
     const downloadChatBtn = document.getElementById('downloadChatBtn');
 
-    videoPlayer.src = `https://player.twitch.tv/?video=${videoId}&parent=${hostname}`;
+    let videoPlayer = document.getElementById('videoPlayer');
+
+    if (identifier.includes('.') || identifier.length > 20) {
+        if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
+            videoPlayer.remove();
+        }
+        videoPlayer = document.createElement('video');
+        videoPlayer.id = 'videoPlayer';
+        videoPlayer.controls = true;
+        videoPlayer.autoplay = true;
+        videoPlayer.style.width = '100%';
+        videoPlayer.style.height = '100%';
+        videoPlayer.src = `/api/preview/${identifier}`;
+        wrapper.appendChild(videoPlayer);
+    } else {
+        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+            videoPlayer.remove();
+        }
+        videoPlayer = document.createElement('iframe');
+        videoPlayer.id = 'videoPlayer';
+        videoPlayer.src = `https://player.twitch.tv/?video=${identifier}&parent=${hostname}`;
+        videoPlayer.style.width = '100%';
+        videoPlayer.style.height = '100%';
+        videoPlayer.style.border = 'none';
+        videoPlayer.allowFullscreen = true;
+        wrapper.appendChild(videoPlayer);
+    }
     
     document.getElementById('previewModal').classList.add('active');
     
     try {
-        const response = await fetch(`/api/chat/${videoId}`);
+        const response = await fetch(`/api/chat/${identifier}`);
         const data = await response.json();
         
         if (data.error || data.length === 0) {
@@ -114,7 +140,7 @@ async function previewVideo(videoId) {
             `).join('');
             
             downloadChatBtn.onclick = () => {
-                window.open(`/api/chat/export/${videoId}`, '_blank');
+                window.open(`/api/chat/export/${identifier}`, '_blank');
             };
         }
     } catch (e) {
