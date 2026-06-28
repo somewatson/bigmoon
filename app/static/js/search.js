@@ -171,6 +171,15 @@ function closePreview() {
     if (wrapper) wrapper.innerHTML = '';
 }
 
+window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+        const modal = document.getElementById('previewModal');
+        if (modal && modal.classList.contains('active')) {
+            closePreview();
+        }
+    }
+});
+
 window.searchVideos = searchVideos;
 window.toggleFavorite = toggleFavorite;
 window.downloadVideo = downloadVideo;
