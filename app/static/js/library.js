@@ -107,7 +107,7 @@ async function loadLibrary() {
                 </div>
                 <div style="display: flex; gap: 8px; align-items: center;">
                     <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
-                    ${(file.video_id && !file.isIncomplete) ? `<button onclick="previewVideo('${escapedFilename}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
+                    ${(file.filename && !file.isIncomplete) ? `<button onclick="previewVideo('${escapedFilename}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
                 </div>
             `;
             
