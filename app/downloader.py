@@ -301,7 +301,7 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
             '-reconnect_at_eof', '1',
             '-reconnect_streamed', '1',
             '-reconnect_delay_max', '5',
-            '-reconnect_attempts', '3',
+            '-reconnect_max_retries', '3',
             '-vaapi_device', '/dev/dri/renderD128',
             '-i', input_path,
         ]
