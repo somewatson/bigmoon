@@ -921,6 +921,7 @@ async function confirmBulkCompress() {
 }
 
 
+async function loadFiles() {
     try {
         const response = await fetch('/api/files');
         const data = await response.json();
