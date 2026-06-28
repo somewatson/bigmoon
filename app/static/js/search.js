@@ -162,6 +162,12 @@ async function previewVideo(identifier) {
     }
 }
 
+function closePreview() {
+    document.getElementById('previewModal').classList.remove('active');
+    const wrapper = document.getElementById('videoPlayerWrapper');
+    if (wrapper) wrapper.innerHTML = '';
+}
+
 window.searchVideos = searchVideos;
 window.toggleFavorite = toggleFavorite;
 window.downloadVideo = downloadVideo;
