@@ -103,6 +103,9 @@ async function previewVideo(identifier) {
         videoPlayer.id = 'videoPlayer';
         videoPlayer.controls = true;
         videoPlayer.autoplay = true;
+        videoPlayer.style.position = 'absolute';
+        videoPlayer.style.top = '0';
+        videoPlayer.style.left = '0';
         videoPlayer.style.width = '100%';
         videoPlayer.style.height = '100%';
         videoPlayer.src = `/api/preview/${identifier}`;
