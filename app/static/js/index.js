@@ -25,3 +25,22 @@ setInterval(() => {
         loadTasks();
     }
 }, 3000);
+
+window.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabFromUrl = urlParams.get('tab');
+    const initialTab = tabFromUrl || window.currentTab || localStorage.getItem('bigmoon_current_tab') || 'search';
+    showTab(initialTab);
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        item.addEventListener('click', (e) => {
+            const tabId = item.getAttribute('data-tab');
+            if (tabId) {
+                e.preventDefault();
+                showTab(tabId);
+            } else if (item.id === 'nav-admin') {
+                window.location.href = '/admin';
+            }
+        });
+    });
+});
