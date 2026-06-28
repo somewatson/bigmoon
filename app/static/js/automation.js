@@ -1,5 +1,6 @@
 async function populateFavAutomationGrid() {
     const grid = document.getElementById('favAutomationGrid');
+    grid.innerHTML = '<div class="empty-state" style="grid-column: 1/-1;"><div class="loader-spinner"></div><p>Loading favorites...</p></div>';
     try {
         const response = await apiFetch('/api/favorites');
         const data = await response.json();

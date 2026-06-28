@@ -1,8 +1,9 @@
 async function loadFavorites() {
+    const grid = document.getElementById('favoritesGrid');
+    grid.innerHTML = '<div class="empty-state"><div class="loader-spinner"></div><p>Loading favorites...</p></div>';
     try {
         const response = await fetch('/api/favorites');
         const data = await response.json();
-        const grid = document.getElementById('favoritesGrid');
         grid.innerHTML = '';
         
         if(data.favorites.length === 0) {
@@ -41,6 +42,7 @@ async function loadFavorites() {
         });
     } catch (e) {
         console.error('Failed to load favorites:', e);
+        grid.innerHTML = '<div class="empty-state"><p style="color: var(--error);">Error loading favorites.</p></div>';
     }
 }
 
