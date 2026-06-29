@@ -15,6 +15,3 @@
     - [x] Fix visibility of the "Download Chat" button in the preview modal.
     - [x] Add a "Download Chat" button to the Library view.
 
-## 📉 Medium Priority
-- [ ] General performance optimization for thumbnail generation.
-

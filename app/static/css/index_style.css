@@ -190,7 +190,8 @@ button:hover { background: var(--primary-hover); }
     border: 1px solid var(--border); 
     display: flex; 
     flex-direction: column; 
-    max-height: 90vh; 
+    max-height: 95vh; 
+    overflow-y: auto;
 }
 .modal-close { position: absolute; top: -40px; right: 0; color: white; font-size: 2rem; cursor: pointer; background: none; border: none; }
 .preview-container { 

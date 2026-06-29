@@ -19,8 +19,11 @@ async function searchVideos() {
         channelInfo.innerHTML = `
             <div class="channel-card">
                 <img src="${profileImg}" alt="avatar">
-                <div>
-                    <h2>${channel}</h2>
+                <div style="flex: 1;">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h2 style="margin: 0;">${channel}</h2>
+                        <a href="https://twitch.tv/${channel}" target="_blank" style="font-size: 1.2rem; text-decoration: none; color: var(--primary);" data-tooltip="Visit channel on Twitch">↗️</a>
+                    </div>
                     <p class="channel-description">${data.channel_info?.description || 'No description available.'}</p>
                 </div>
                 <button class="fav-btn" onclick="toggleFavorite('${channel}')" data-tooltip="Add to Favorites">❤️</button>
