@@ -109,6 +109,7 @@ async function loadLibrary() {
                     <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
                     ${(file.filename && !file.isIncomplete) ? `<button onclick="previewVideo('${escapedFilename}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
                     ${file.video_id ? `<button onclick="viewChat('${file.video_id}')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="View Chat">View Chat</button>` : ''}
+                    ${file.video_id ? `<button onclick="window.open('/api/chat/export/${file.video_id}', '_blank')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="Download Chat JSON">Chat JSON</button>` : ''}
                 </div>
             `;
             

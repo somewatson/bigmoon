@@ -132,7 +132,6 @@ async function previewVideo(identifier) {
     
     document.getElementById('previewModal').classList.add('active');
     
-    
     let chatIdentifier = identifier;
     const videoIdMatch = identifier.match(/\[(v\d+)\]/);
     if (videoIdMatch) {
@@ -153,21 +152,65 @@ async function previewVideo(identifier) {
             chatContainer.style.display = 'none';
         } else {
             chatContainer.style.display = 'block';
-            chatMessages.innerHTML = data.map(m => `
-                <div class="chat-message" style="margin-bottom: 4px; font-size: 0.85rem;">
+            chatMessages.innerHTML = data.map((m, idx) => `
+                <div class="chat-message" data-time="${m.time}" id="msg-${idx}" style="margin-bottom: 4px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onclick="seekToChatTime(${m.time})">
                     <span style="color: var(--primary); font-weight: bold;">${m.username}:</span>
                     <span>${m.message}</span>
-                    <span style="color: var(--text-dim); font-size: 0.7rem; float: right;">${Math.floor(m.time)}s</span>
+                    <span style="color: var(--text-dim); font-size: 0.7rem; float: right;">${formatTime(m.time)}</span>
                 </div>
             `).join('');
             
             downloadChatBtn.onclick = () => {
                 window.open(`/api/chat/export/${chatIdentifier}`, '_blank');
             };
+
+            // Setup synchronization if it's a local video player
+            if (videoPlayer.tagName === 'VIDEO') {
+                videoPlayer.ontimeupdate = () => syncChat(videoPlayer.currentTime);
+            }
         }
     } catch (e) {
         console.error('Failed to load chat:', e);
         chatContainer.style.display = 'none';
+    }
+}
+
+function formatTime(seconds) {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    return h > 0 
+        ? `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+        : `${m}:${s.toString().padStart(2, '0')}`;
+}
+
+function seekToChatTime(time) {
+    const videoPlayer = document.getElementById('videoPlayer');
+    if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+        videoPlayer.currentTime = time;
+    } else {
+        showToast('Seeking only supported for local video previews', 'info');
+    }
+}
+
+function syncChat(currentTime) {
+    const messages = document.querySelectorAll('.chat-message');
+    let closest = null;
+    let minDiff = Infinity;
+
+    messages.forEach(msg => {
+        const msgTime = parseFloat(msg.dataset.time);
+        const diff = Math.abs(currentTime - msgTime);
+        if (diff < minDiff) {
+            minDiff = diff;
+            closest = msg;
+        }
+    });
+
+    if (closest && minDiff < 2) {
+        messages.forEach(m => m.style.background = 'transparent');
+        closest.style.background = 'rgba(145, 70, 255, 0.2)';
+        closest.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 }
 
