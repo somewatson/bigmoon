@@ -111,9 +111,33 @@ def bootstrap_admin():
             app.logger.debug(f"Database migration note: {e}")
 
         try:
+            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN chat_json_path TEXT"))
+            db.session.commit()
+            app.logger.info("Migrated database: added chat_json_path column to download_task")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.debug(f"Database migration note: {e}")
+
+        try:
             db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN encoder_type TEXT"))
             db.session.commit()
             app.logger.info("Migrated database: added encoder_type column to download_task")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.debug(f"Database migration note: {e}")
+
+        try:
+            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN chat_json_path TEXT"))
+            db.session.commit()
+            app.logger.info("Migrated database: added chat_json_path column to download_task")
+        except Exception as e:
+            db.session.rollback()
+            app.logger.debug(f"Database migration note: {e}")
+
+        try:
+            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN chat_status TEXT"))
+            db.session.commit()
+            app.logger.info("Migrated database: added chat_status column to download_task")
         except Exception as e:
             db.session.rollback()
             app.logger.debug(f"Database migration note: {e}")
@@ -1028,6 +1052,17 @@ def bulk_compress_files():
         message += f'. Skipped {len(skipped_files)} files that already had compressed copies.'
         
     return jsonify({'message': message, 'taskIds': task_ids, 'skipped': skipped_files})
+
+@app.route('/api/download/chat/<video_id>', methods=['POST'])
+@login_required
+def download_chat_route(video_id):
+    clean_id = video_id[1:] if video_id.startswith('v') else video_id
+    task = DownloadTask.query.filter_by(video_id=clean_id).first()
+    if not task:
+        return jsonify({'error': 'Video not found'}), 404
+    
+    start_chat_download_async(clean_id, task.id)
+    return jsonify({'message': 'Chat download started in background'})
 
 @app.route('/api/chat/<video_id>')
 @login_required

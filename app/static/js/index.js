@@ -12,7 +12,103 @@ function toggleSidebar() {
 }
 window.toggleSidebar = toggleSidebar;
 
+async function previewVideo(filename) {
+    const modal = document.getElementById('previewModal');
+    const video = document.getElementById('videoPlayer');
+    const chatContainer = document.getElementById('chatContainer');
+    const chatMessages = document.getElementById('chatMessages');
+    const downloadChatBtn = document.getElementById('downloadChatBtn');
+    
+    modal.classList.add('active');
+    
+    // Extract video_id from filename if possible (assuming [id] pattern)
+    const match = filename.match(/\[([a-zA-Z0-9]+)\]/);
+    const videoId = match ? match[1] : null;
+    
+    video.src = `/api/preview/${encodeURIComponent(filename)}`;
+    
+    // Handle Chat
+    if (videoId) {
+        chatContainer.style.display = 'block';
+        chatMessages.innerHTML = 'Loading chat...';
+        downloadChatBtn.onclick = () => {
+            window.location.href = `/api/chat/export/${videoId}`;
+        };
+        
+        try {
+            const response = await fetch(`/api/chat/${videoId}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                chatMessages.innerHTML = `<div style="color: var(--text-dim);">${data.error}</div>`;
+            } else if (data.length === 0) {
+                chatMessages.innerHTML = `<div style="color: var(--text-dim);">No chat messages found.</div>`;
+            } else {
+                chatMessages.innerHTML = data.map(m => `
+                    <div style="font-size: 0.85rem; line-height: 1.4; margin-bottom: 4px;">
+                        <span style="color: #aaa; font-weight: bold;">[${Math.floor(m.time)}s] ${m.username}:</span> 
+                        <span style="color: #eee;">${m.message}</span>
+                    </div>
+                `).join('');
+            }
+        } catch (e) {
+            chatMessages.innerHTML = `<div style="color: var(--error);">Failed to load chat.</div>`;
+        }
+    } else {
+        chatContainer.style.display = 'none';
+    }
+}
+window.previewVideo = previewVideo;
+
+async function viewChat(videoId) {
+    const modal = document.getElementById('previewModal');
+    const video = document.getElementById('videoPlayer');
+    const chatContainer = document.getElementById('chatContainer');
+    const chatMessages = document.getElementById('chatMessages');
+    const downloadChatBtn = document.getElementById('downloadChatBtn');
+    
+    modal.classList.add('active');
+    video.src = ''; // No video if just viewing chat
+    
+    chatContainer.style.display = 'block';
+    chatMessages.innerHTML = 'Loading chat...';
+    downloadChatBtn.onclick = () => {
+        window.location.href = `/api/chat/export/${videoId}`;
+    };
+    
+    try {
+        const response = await fetch(`/api/chat/${videoId}`);
+        const data = await response.json();
+        
+        if (data.error) {
+            chatMessages.innerHTML = `<div style="color: var(--text-dim);">${data.error}</div>`;
+        } else if (data.length === 0) {
+            chatMessages.innerHTML = `<div style="color: var(--text-dim);">No chat messages found.</div>`;
+        } else {
+            chatMessages.innerHTML = data.map(m => `
+                <div style="font-size: 0.85rem; line-height: 1.4; margin-bottom: 4px;">
+                    <span style="color: #aaa; font-weight: bold;">[${Math.floor(m.time)}s] ${m.username}:</span> 
+                    <span style="color: #eee;">${m.message}</span>
+                </div>
+            `).join('');
+        }
+    } catch (e) {
+        chatMessages.innerHTML = `<div style="color: var(--error);">Failed to load chat.</div>`;
+    }
+}
+window.viewChat = viewChat;
+
+function closePreview() {
+    const modal = document.getElementById('previewModal');
+    const video = document.getElementById('videoPlayer');
+    modal.classList.remove('active');
+    video.pause();
+    video.src = '';
+}
+window.closePreview = closePreview;
+
 function toggleAdminMenu() {
+
     const submenu = document.getElementById('adminSubmenu');
     if (!submenu) return;
     submenu.classList.toggle('active');

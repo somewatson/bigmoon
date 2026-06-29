@@ -2,6 +2,13 @@
 
 ## 🛠️ High Priority
 
+### 5. Recommended Channels (Washodo)
+**Goal**: Add a quick-access section for recommended Washodo members in the Search tab.
+- [ ] **Styling**: Add `.rec-tag` and `.recommendations-container` styles to `index_style.css`.
+- [ ] **Template**: Insert the recommended channels tag cloud into `index.html` (Search tab).
+- [ ] **Logic**: Implement `quickSearch()` in `search.js` to populate input and trigger `searchVideos()`.
+- [ ] **Verification**: Confirm clicking a tag triggers the correct search and UI updates.
+
 ### 3. Library UX & Stability
 **Goal**: Improve the loading and visual feedback of the library.
 - [x] **Implement Loading States**:

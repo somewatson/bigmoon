@@ -3,7 +3,7 @@ async function searchVideos() {
     const grid = document.getElementById('videoGrid');
     const channelInfo = document.getElementById('channelInfo');
     if (!channel) return;
-
+    
     grid.innerHTML = '';
     channelInfo.innerHTML = '<p>Searching Twitch...</p>';
     try {
@@ -14,7 +14,7 @@ async function searchVideos() {
         });
         const data = await response.json();
         if (data.error) throw new Error(data.error);
-
+        
         const profileImg = data.channel_info?.profile_image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
         channelInfo.innerHTML = `
             <div class="channel-card">
@@ -26,7 +26,7 @@ async function searchVideos() {
                 <button class="fav-btn" onclick="toggleFavorite('${channel}')" data-tooltip="Add to Favorites">❤️</button>
             </div>
         `;
-
+        
         grid.innerHTML = '';
         data.videos.forEach(video => {
             const card = document.createElement('div');
@@ -35,9 +35,9 @@ async function searchVideos() {
             const thumbUrl = video.thumbnail_url
                 .replace('%{width}', '1280')
                 .replace('%{height}', '720');
-
+        
             const durationStr = video.duration || "Unknown";
-
+        
             card.innerHTML = `
                 <img src="${thumbUrl}" alt="thumbnail">
                 <div class="duration-badge">${durationStr}</div>
@@ -48,8 +48,8 @@ async function searchVideos() {
                             <button onclick="downloadVideo('${video.url}', '${video.id}')" style="flex: 1;" data-tooltip="Download this VOD">Download</button>
                             <button onclick="previewVideo('${video.id}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>
                             <a href="${video.url}" target="_blank" style="text-align: center; display: flex; align-items: center; justify-content: center; background: #444; color: white; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Open on Twitch">View VOD</a>
+                        </div>
                     </div>
-                </div>
             `;
             grid.appendChild(card);
         });
@@ -57,6 +57,12 @@ async function searchVideos() {
         channelInfo.innerHTML = `<p style="color: var(--error)">${e.message}</p>`;
     }
 }
+
+function quickSearch(channel) {
+    document.getElementById('channelInput').value = channel;
+    searchVideos();
+}
+
 
 async function toggleFavorite(channel) {
     try {

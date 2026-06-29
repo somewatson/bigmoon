@@ -468,6 +468,11 @@ select { padding: 6px; border-radius: 4px; background: #121212; color: white; bo
     transform: translateX(-50%) translateY(0);
 }
 
+/* Recommended Channels */
+.recommendations-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; font-size: 0.85rem; color: var(--text-dim); }
+.rec-tag { background: #2a2a2a; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); transition: 0.2s; font-weight: 500; }
+.rec-tag:hover { background: #333; border-color: var(--primary); color: white; transform: translateY(-1px); }
+
 /* Toast Notifications */
 #toast-container { position: fixed; bottom: 20px; right: 20px; z-index: 1000; display: flex; flex-direction: column; gap: 10px; }
 .toast { background: #222; color: white; padding: 12px 20px; border-radius: 6px; border-left: 4px solid var(--primary); box-shadow: 0 4px 12px rgba(0,0,0,0.5); min-width: 250px; animation: slideIn 0.3s ease-out; cursor: pointer; transition: 0.2s; }
