@@ -22,7 +22,7 @@ async function searchVideos() {
                 <div style="flex: 1;">
                     <div style="display: flex; align-items: center; gap: 10px;">
                         <h2 style="margin: 0;">${channel}</h2>
-                        <a href="https://twitch.tv/${channel}" target="_blank" style="font-size: 1.2rem; text-decoration: none; color: var(--primary);" data-tooltip="Visit channel on Twitch">↗️</a>
+                        <a href="https://twitch.tv/${channel}" target="_blank" style="font-size: 0.85rem; text-decoration: none; color: var(--primary); font-weight: bold; padding: 2px 8px; border: 1px solid var(--primary); border-radius: 4px; transition: 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--primary)';" data-tooltip="Visit channel on Twitch">Visit Profile</a>
                     </div>
                     <p class="channel-description">${data.channel_info?.description || 'No description available.'}</p>
                 </div>
@@ -155,6 +155,7 @@ async function previewVideo(identifier) {
             chatContainer.style.display = 'none';
         } else {
             chatContainer.style.display = 'block';
+            chatMessages.innerHTML = '';
             chatMessages.innerHTML = data.map((m, idx) => `
                 <div class="chat-message" data-time="${m.time}" id="msg-${idx}" style="margin-bottom: 4px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onclick="seekToChatTime(${m.time})">
                     <span style="color: var(--primary); font-weight: bold;">${m.username}:</span>
