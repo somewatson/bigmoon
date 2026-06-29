@@ -18,7 +18,7 @@ def download_chat_sync(video_id, task_id):
 
         # Construct the Twitch URL for the downloader
         url = f"https://www.twitch.tv/videos/{video_id}"
-        downloader = ChatDownloader().get_chat(url, interruptible_retry=False)
+        downloader = ChatDownloader().get_chat(url, interruptible_retry=False, max_attempts=3)
         chat_data = []
         for message in downloader:
             chat_msg = ChatMessage(
