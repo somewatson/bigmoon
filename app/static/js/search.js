@@ -140,14 +140,16 @@ async function previewVideo(identifier) {
     if (videoIdMatch) {
         chatIdentifier = videoIdMatch[1];
     } else if (identifier.includes('.') || identifier.length > 20) {
-        chatIdentifier = null;
+        // Keep the identifier as the filename, the backend will now handle the lookup
+        chatIdentifier = identifier;
     }
-
+    
     try {
         if (!chatIdentifier) {
             chatContainer.style.display = 'none';
             return;
         }
+
         const response = await fetch(`/api/chat/${chatIdentifier}`);
         const data = await response.json();
         

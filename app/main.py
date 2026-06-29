@@ -1069,9 +1069,17 @@ def download_chat_route(video_id):
 def get_chat(video_id):
     # Strip leading 'v' if present to match numeric ID in database
     clean_id = video_id[1:] if video_id.startswith('v') else video_id
+    
+    # 1. Try to find by video_id
     task = DownloadTask.query.filter_by(video_id=clean_id).first()
+    
+    # 2. Fallback: Try to find by filename if clean_id looks like a filename
+    if not task and ('.' in clean_id or len(clean_id) > 20):
+        safe_filename = os.path.basename(clean_id)
+        task = DownloadTask.query.filter_by(filename=safe_filename).first()
+        
     if not task:
-        return jsonify({'error': 'Video not found'}), 404
+        return jsonify({'error': 'Video not found in database'}), 404
     
     messages = ChatMessage.query.filter_by(task_id=task.id).order_by(ChatMessage.time_in_seconds).all()
     return jsonify([{
