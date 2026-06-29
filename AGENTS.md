@@ -14,6 +14,7 @@
 - **Persistence**: SQLite database stored in `/data`.
 - **VOD Storage**: Downloaded files stored in `/app/downloads` (or `/downloads` on host).
 - **Hardware Accel**: Relies on Intel VA-API and `iHD` driver. Uses SVT-AV1 for AV1 encoding.
+- **Code Style**: Files should aim for a maximum length of 750 lines. If a file exceeds this threshold, start extracting related functionality into modular files.
 
 ## Environment & Setup
 - **Required `.env` Keys**: `TWITCH_CLIENT_ID`, `TWITCH_CLIENT_SECRET`, `ADMIN_USERNAME`, `ADMIN_PASSWORD`, `USE_GPU`.

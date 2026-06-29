@@ -149,37 +149,65 @@ async function previewVideo(identifier) {
             chatContainer.style.display = 'none';
             return;
         }
-
         const response = await fetch(`/api/chat/${chatIdentifier}`);
+        
+        if (response.status === 202) {
+            const data = await response.json();
+            chatContainer.style.display = 'block';
+            chatMessages.innerHTML = `<div style="text-align: center; color: var(--text-dim); padding: 20px;">${data.message}</div>`;
+            
+            // Poll for chat completion
+            const pollInterval = setInterval(async () => {
+                const pollRes = await fetch(`/api/chat/${chatIdentifier}`);
+                if (pollRes.status === 200) {
+                    const pollData = await pollRes.json();
+                    if (pollData.length > 0) {
+                        clearInterval(pollInterval);
+                        renderChatMessages(pollData, chatIdentifier);
+                    }
+                }
+            }, 3000);
+            return;
+        }
+
         const data = await response.json();
         
         if (data.error || data.length === 0) {
             chatContainer.style.display = 'none';
         } else {
-            chatContainer.style.display = 'block';
-            chatMessages.innerHTML = '';
-            chatMessages.innerHTML = data.map((m, idx) => `
-                <div class="chat-message" data-time="${m.time}" id="msg-${idx}" style="margin-bottom: 4px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onclick="seekToChatTime(${m.time})">
-                    <span style="color: var(--primary); font-weight: bold;">${m.username}:</span>
-                    <span>${m.message}</span>
-                    <span style="color: var(--text-dim); font-size: 0.7rem; float: right;">${formatTime(m.time)}</span>
-                </div>
-            `).join('');
-            
-            downloadChatBtn.onclick = () => {
-                window.open(`/api/chat/export/${chatIdentifier}`, '_blank');
-            };
-
-            // Setup synchronization if it's a local video player
-            if (videoPlayer.tagName === 'VIDEO') {
-                videoPlayer.ontimeupdate = () => syncChat(videoPlayer.currentTime);
-            }
+            renderChatMessages(data, chatIdentifier);
         }
     } catch (e) {
         console.error('Failed to load chat:', e);
         chatContainer.style.display = 'none';
     }
 }
+
+function renderChatMessages(data, chatIdentifier) {
+    const chatContainer = document.getElementById('chatContainer');
+    const chatMessages = document.getElementById('chatMessages');
+    const downloadChatBtn = document.getElementById('downloadChatBtn');
+
+    chatContainer.style.display = 'block';
+    chatMessages.innerHTML = '';
+    chatMessages.innerHTML = data.map((m, idx) => `
+        <div class="chat-message" data-time="${m.time}" id="msg-${idx}" style="margin-bottom: 4px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onclick="seekToChatTime(${m.time})">
+            <span style="color: var(--primary); font-weight: bold;">${m.username}:</span>
+            <span>${m.message}</span>
+            <span style="color: var(--text-dim); font-size: 0.7rem; float: right;">${formatTime(m.time)}</span>
+        </div>
+    `).join('');
+    
+    downloadChatBtn.onclick = () => {
+        window.open(`/api/chat/export/${chatIdentifier}`, '_blank');
+    };
+
+    const videoPlayer = document.getElementById('videoPlayer');
+    if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+        videoPlayer.ontimeupdate = () => syncChat(videoPlayer.currentTime);
+    }
+}
+
 
 function formatTime(seconds) {
     const h = Math.floor(seconds / 3600);

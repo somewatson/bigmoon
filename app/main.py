@@ -18,7 +18,8 @@ except ImportError:
     psutil = None
 
 from models import db, User, Favorite, DownloadTask, MonitoredChannel, ChatMessage
-from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path, start_chat_download_async
+from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path
+from chat_manager import start_chat_download_async
 
 
 
@@ -1067,21 +1068,31 @@ def download_chat_route(video_id):
 @app.route('/api/chat/<video_id>')
 @login_required
 def get_chat(video_id):
+    app.logger.info(f"Chat API requested for video_id: {video_id}")
     # Strip leading 'v' if present to match numeric ID in database
     clean_id = video_id[1:] if video_id.startswith('v') else video_id
+    app.logger.info(f"Cleaned ID: {clean_id}")
     
     # 1. Try to find by video_id
     task = DownloadTask.query.filter_by(video_id=clean_id).first()
+    if task:
+        app.logger.info(f"Found task by video_id: {task.id}")
     
     # 2. Fallback: Try to find by filename if clean_id looks like a filename
     if not task and ('.' in clean_id or len(clean_id) > 20):
         safe_filename = os.path.basename(clean_id)
+        app.logger.info(f"Attempting filename lookup for: {safe_filename}")
         task = DownloadTask.query.filter_by(filename=safe_filename).first()
+        if task:
+            app.logger.info(f"Found task by filename: {task.id}")
         
     if not task:
+        app.logger.warning(f"No task found in database for identifier: {video_id}")
         return jsonify({'error': 'Video not found in database'}), 404
     
     messages = ChatMessage.query.filter_by(task_id=task.id).order_by(ChatMessage.time_in_seconds).all()
+    app.logger.info(f"Found {len(messages)} messages for task {task.id}")
+    
     return jsonify([{
         'username': m.username,
         'message': m.message,

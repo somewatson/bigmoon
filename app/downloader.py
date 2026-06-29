@@ -6,7 +6,7 @@ import traceback
 import signal
 from datetime import datetime
 from dotenv import load_dotenv
-from models import db, DownloadTask, ChatMessage
+from models import db, DownloadTask
 
 load_dotenv()
 
