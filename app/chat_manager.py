@@ -16,22 +16,24 @@ def download_chat_sync(video_id, task_id):
             task.chat_status = 'downloading'
             db.session.commit()
 
-        downloader = ChatDownloader.get_twitch_chat(video_id)
+        # Construct the Twitch URL for the downloader
+        url = f"https://www.twitch.tv/videos/{video_id}"
+        downloader = ChatDownloader().get_chat(url)
         chat_data = []
-        for message in downloader.get_chat_entries():
+        for message in downloader:
             chat_msg = ChatMessage(
                 task_id=task_id,
-                username=message.get('username'),
+                username=message.get('author', {}).get('name'),
                 message=message.get('message'),
-                time_in_seconds=message.get('timestamp'),
-                timestamp=datetime.fromtimestamp(message.get('timestamp', 0)) if message.get('timestamp') else None
+                time_in_seconds=message.get('time_in_seconds'),
+                timestamp=datetime.fromtimestamp(message.get('timestamp', 0) / 1e6) if message.get('timestamp') else None
             )
             db.session.add(chat_msg)
             chat_data.append({
-                'username': message.get('username'),
+                'username': message.get('author', {}).get('name'),
                 'message': message.get('message'),
-                'time': message.get('timestamp'),
-                'timestamp': message.get('timestamp')
+                'time': message.get('time_in_seconds'),
+                'timestamp': message.get('time_in_seconds')
             })
             # Commit in batches to improve performance
             if len(db.session.new) >= 100:
