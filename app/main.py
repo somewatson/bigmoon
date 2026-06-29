@@ -19,7 +19,7 @@ except ImportError:
 
 from models import db, User, Favorite, DownloadTask, MonitoredChannel, ChatMessage
 from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path
-from chat_manager import start_chat_download_async
+from chat_manager import start_chat_download_async, download_chat_sync
 
 
 
@@ -1090,7 +1090,27 @@ def get_chat(video_id):
         app.logger.warning(f"No task found in database for identifier: {video_id}")
         return jsonify({'error': 'Video not found in database'}), 404
     
+    # Check if chat messages exist. If not, attempt a synchronous download.
     messages = ChatMessage.query.filter_by(task_id=task.id).order_by(ChatMessage.time_in_seconds).all()
+    
+    if not messages:
+        app.logger.info(f"No chat found for task {task.id}, attempting synchronous download...")
+        try:
+            # Use the clean_id (numeric ID) for the downloader
+            # If it was found by filename, we might not have the video_id. 
+            # Fallback to task.video_id if available.
+            vid_id = task.video_id if task.video_id else clean_id
+            chat_data = download_chat_sync(vid_id, task.id)
+            
+            return jsonify([{
+                'username': m['username'],
+                'message': m['message'],
+                'time': m['time']
+            } for m in chat_data])
+        except Exception as e:
+            app.logger.error(f"Synchronous chat download failed: {e}")
+            return jsonify({'error': 'Failed to download chat synchronously', 'details': str(e)}), 500
+
     app.logger.info(f"Found {len(messages)} messages for task {task.id}")
     
     return jsonify([{
