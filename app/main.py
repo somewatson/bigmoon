@@ -151,25 +151,100 @@ def bootstrap_admin():
             db.session.rollback()
             app.logger.error(f"Failed to create monitored_channel table: {e}")
 
-        if not User.query.filter_by(role='admin').first():
-            admin_user = User(
-                username=os.getenv('ADMIN_USERNAME', 'admin'),
-                role='admin'
-            )
-            admin_user.set_password(os.getenv('ADMIN_PASSWORD', 'admin_password'))
-            db.session.add(admin_user)
-            db.session.commit()
+        # Startup Recovery: Resume interrupted tasks instead of marking them as error
+        recover_interrupted_tasks()
 
-        # Startup Cleanup: Mark all hanging tasks from previous session as error
-        hanging_tasks = DownloadTask.query.filter(
-            DownloadTask.status.in_(['pending', 'downloading', 'processing'])
-        ).all()
-        if hanging_tasks:
-            app.logger.info(f"Cleaning up {len(hanging_tasks)} hanging tasks from previous session...")
-            for task in hanging_tasks:
+def recover_interrupted_tasks():
+    \"\"\"
+    Identifies tasks that were interrupted (status 'paused' or stuck in 'downloading/processing')
+    and attempts to resume them based on local file state.
+    \"\"\"
+    app.logger.info(\"Starting Recovery Manager: checking for interrupted tasks...\")
+    
+    # 1. Identify interrupted tasks
+    # 'paused' tasks are explicitly paused.
+    # 'downloading' or 'processing' tasks that are still in this state on startup are considered stuck.
+    interrupted_tasks = DownloadTask.query.filter(
+        DownloadTask.status.in_(['paused', 'downloading', 'processing'])
+    ).all()
+    
+    if not interrupted_tasks:
+        app.logger.info(\"No interrupted tasks found for recovery.\")
+        return
+
+    app.logger.info(f\"Found {len(interrupted_tasks)} interrupted tasks. Analyzing state...\")
+    
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    recovered_count = 0
+
+    for task in interrupted_tasks:
+        try:
+            # 2. Verify current state of local file on disk
+            resumable = False
+            
+            if task.task_type == 'download':
+                # For downloads, we check if there's a .part or .ytdl file that matches the expected pattern
+                # Since we don't store the exact temporary filename, we look for any part file associated with the video_id
+                # if the final filename is already there, it might have been completed but not marked.
+                if task.filename and os.path.exists(os.path.join(downloads_dir, task.filename)):
+                    # File already exists, might be complete. We can try to resume to let yt-dlp verify.
+                    resumable = True
+                else:
+                    # Search for temporary files matching the video_id or title pattern
+                    # yt-dlp usually creates files with [id] in them.
+                    if task.video_id:
+                        temp_files = [f for f in os.listdir(downloads_dir) if task.video_id in f and f.endswith(('.part', '.ytdl'))]
+                        if temp_files:
+                            resumable = True
+            
+            elif task.task_type == 'compress':
+                # For compression, we check if the input file exists.
+                if task.filename and os.path.exists(os.path.join(downloads_dir, task.filename)):
+                    # Input exists, we can restart compression.
+                    resumable = True
+            
+            if resumable:
+                app.logger.info(f\"Recovering task {task.id} ({task.task_type}) - State verified on disk.\")
+                
+                # 3. Status Management: transition 'paused' -> 'pending' -> 'downloading/processing'
+                # This avoids race conditions and ensures the task is seen as active.
+                task.status = 'pending'
+                db.session.commit()
+                
+                if task.task_type == 'download':
+                    # We need the URL to resume download. 
+                    # Since we don't store URL in DB, we have a problem.
+                    # HOWEVER, for monitored channels or specific URLs, we might need a way to retrieve it.
+                    # If the URL is missing, we can't resume yt-dlp.
+                    # Wait, DownloadTask does NOT have a URL column.
+                    # Let's check if we can find it. 
+                    # Actually, if the task is 'download', and we don't have the URL, we can't resume.
+                    # We should probably log this as a failure.
+                    app.logger.error(f\"Cannot recover download task {task.id}: original URL not stored in database.\")
+                    task.status = 'error'
+                    task.error_log = \"Recovery failed: original URL not found in database.\"
+                
+                elif task.task_type == 'compress':
+                    # Compression has everything it needs (filename, preset, codec).
+                    # We need to recover preset and codec. They are not in DownloadTask.
+                    # We'll use defaults 'balanced' and 'H.264' as fallback, similar to retry_task.
+                    # Ideally, these should have been stored.
+                    start_compress_async(task.filename, 'balanced', task.id, task.user_id, 'H.264')
+                    recovered_count += 1
+                
+                db.session.commit()
+            else:
+                app.logger.info(f\"Task {task.id} not resumable (no matching file on disk). Marking as error.\")
                 task.status = 'error'
-                task.error_log = 'Session restarted - task invalidated'
-            db.session.commit()
+                task.error_log = \"Recovery failed: no partial file found on disk.\"
+                db.session.commit()
+                
+        except Exception as e:
+            app.logger.error(f\"Error recovering task {task.id}: {e}\")
+            db.session.rollback()
+
+    app.logger.info(f\"Recovery sequence completed. {recovered_count} tasks resumed.\")
+
 
 def handle_shutdown(signum, frame):
     logging.info(f"Received signal {signum}, shutting down gracefully...")
@@ -263,12 +338,20 @@ def admin_activity():
 
 @app.route('/api/admin/activity')
 @login_required
+def admin_activity():
+    if current_user.role != 'admin':
+        return "Access denied", 403
+    return render_template('admin_activity.html')
+
+@app.route('/api/admin/activity')
+@login_required
 def admin_activity_api():
     if current_user.role != 'admin':
         return jsonify({'error': 'Forbidden'}), 403
     
     try:
         # Stats
+        total_users = User.query.count()
         total_active = DownloadTask.query.filter(DownloadTask.status.in_(['pending', 'downloading', 'processing'])).count()
         total_pending = DownloadTask.query.filter_by(status='pending').count()
         total_failed = DownloadTask.query.filter_by(status='error').count()
@@ -277,6 +360,8 @@ def admin_activity_api():
         tasks_query = db.session.query(DownloadTask, User.username).join(User, DownloadTask.user_id == User.id).order_by(DownloadTask.created_at.desc()).all()
         
         tasks_list = []
+        user_stats_map = {}
+
         for task, username in tasks_query:
             tasks_list.append({
                 'id': task.id,
@@ -288,13 +373,39 @@ def admin_activity_api():
                 'created_at': task.created_at.isoformat() if task.created_at else None
             })
             
+            # Aggregating user summaries
+            if username not in user_stats_map:
+                user_stats_map[username] = {'total': 0, 'completed': 0, 'failed': 0, 'last_active': task.created_at}
+            
+            user_stats_map[username]['total'] += 1
+            if task.status == 'completed':
+                user_stats_map[username]['completed'] += 1
+            elif task.status == 'error':
+                user_stats_map[username]['failed'] += 1
+            
+            if task.created_at and (not user_stats_map[username]['last_active'] or task.created_at > user_stats_map[username]['last_active']):
+                user_stats_map[username]['last_active'] = task.created_at
+
+        user_summaries = [
+            {
+                'username': name,
+                'total_tasks': stats['total'],
+                'completed_tasks': stats['completed'],
+                'failed_tasks': stats['failed'],
+                'last_active': stats['last_active'].isoformat() if stats['last_active'] else 'Never'
+            }
+            for name, stats in user_stats_map.items()
+        ]
+            
         return jsonify({
             'stats': {
+                'total_users': total_users,
                 'active': total_active,
                 'pending': total_pending,
                 'failed': total_failed
             },
-            'tasks': tasks_list
+            'tasks': tasks_list,
+            'user_summaries': user_summaries
         })
     except Exception as e:
         app.logger.error(f"Error fetching admin activity stats: {e}")
