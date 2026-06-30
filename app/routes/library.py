@@ -1,12 +1,50 @@
 import os
 import subprocess
-from flask import Blueprint, request, jsonify, send_from_directory
+from flask import Blueprint, render_template, request, jsonify, send_from_directory
 from flask_login import login_required, current_user
 from models import db, DownloadTask
 from utils.system import format_size
 from urllib.parse import unquote
 
 library_bp = Blueprint('library', __name__)
+
+@library_bp.route('/api/thumbnails/<path:filename>')
+@login_required
+def get_thumbnail(filename):
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    thumb_dir = os.path.join(downloads_dir, '.thumbnails')
+    
+    if not os.path.exists(thumb_dir):
+        try:
+            os.makedirs(thumb_dir, exist_ok=True)
+        except Exception as e:
+            return jsonify({'error': f'Could not create thumbnail directory: {str(e)}'}), 500
+
+    decoded_filename = unquote(filename)
+    thumb_filename = f"{decoded_filename}.jpg"
+    thumb_path = os.path.join(thumb_dir, thumb_filename)
+    video_path = os.path.join(downloads_dir, decoded_filename)
+
+    if os.path.exists(thumb_path):
+        return send_from_directory(thumb_dir, thumb_filename)
+
+    if not os.path.exists(video_path):
+        return jsonify({'error': 'Video file not found'}), 404
+
+    try:
+        cmd = [
+            'ffmpeg', '-y', 
+            '-ss', '00:00:05', 
+            '-i', video_path, 
+            '-vframes', '1', 
+            '-q:v', '2', 
+            '-vf', 'scale=160:-1', 
+            thumb_path
+        ]
+        subprocess.run(cmd, check=True, capture_output=True, timeout=30)
+        return send_from_directory(thumb_dir, thumb_filename)
+    except Exception as e:
+        return jsonify({'error': f'Thumbnail generation failed: {str(e)}'}), 500
 
 @library_bp.route('/api/files', methods=['GET'])
 @login_required
@@ -173,7 +211,6 @@ def bulk_compress_files():
 @login_required
 def preview_video(filename):
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    # Decode URL encoded characters (e.g. %F0%9F%93%8D)
     decoded_filename = unquote(filename)
     safe_filename = os.path.basename(decoded_filename)
     
