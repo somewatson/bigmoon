@@ -86,7 +86,8 @@ def bootstrap_admin():
             "ALTER TABLE download_task ADD COLUMN error_log TEXT",
             "ALTER TABLE download_task ADD COLUMN chat_json_path TEXT",
             "ALTER TABLE download_task ADD COLUMN encoder_type TEXT",
-            "ALTER TABLE download_task ADD COLUMN chat_status TEXT"
+            "ALTER TABLE download_task ADD COLUMN chat_status TEXT",
+            "ALTER TABLE download_task ADD COLUMN last_byte_offset INTEGER"
         ]
         for sql in migrations:
             try:
