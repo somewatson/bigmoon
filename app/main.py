@@ -155,11 +155,11 @@ def bootstrap_admin():
         recover_interrupted_tasks()
 
 def recover_interrupted_tasks():
-    \"\"\"
+    """
     Identifies tasks that were interrupted (status 'paused' or stuck in 'downloading/processing')
     and attempts to resume them based on local file state.
-    \"\"\"
-    app.logger.info(\"Starting Recovery Manager: checking for interrupted tasks...\")
+    """
+    app.logger.info("Starting Recovery Manager: checking for interrupted tasks...")
     
     # 1. Identify interrupted tasks
     # 'paused' tasks are explicitly paused.
@@ -169,14 +169,14 @@ def recover_interrupted_tasks():
     ).all()
     
     if not interrupted_tasks:
-        app.logger.info(\"No interrupted tasks found for recovery.\")
+        app.logger.info("No interrupted tasks found for recovery.")
         return
-
-    app.logger.info(f\"Found {len(interrupted_tasks)} interrupted tasks. Analyzing state...\")
+    
+    app.logger.info(f"Found {len(interrupted_tasks)} interrupted tasks. Analyzing state...")
     
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     recovered_count = 0
-
+    
     for task in interrupted_tasks:
         try:
             # 2. Verify current state of local file on disk
@@ -184,66 +184,45 @@ def recover_interrupted_tasks():
             
             if task.task_type == 'download':
                 # For downloads, we check if there's a .part or .ytdl file that matches the expected pattern
-                # Since we don't store the exact temporary filename, we look for any part file associated with the video_id
-                # if the final filename is already there, it might have been completed but not marked.
                 if task.filename and os.path.exists(os.path.join(downloads_dir, task.filename)):
-                    # File already exists, might be complete. We can try to resume to let yt-dlp verify.
                     resumable = True
                 else:
-                    # Search for temporary files matching the video_id or title pattern
-                    # yt-dlp usually creates files with [id] in them.
                     if task.video_id:
                         temp_files = [f for f in os.listdir(downloads_dir) if task.video_id in f and f.endswith(('.part', '.ytdl'))]
                         if temp_files:
                             resumable = True
             
             elif task.task_type == 'compress':
-                # For compression, we check if the input file exists.
                 if task.filename and os.path.exists(os.path.join(downloads_dir, task.filename)):
-                    # Input exists, we can restart compression.
                     resumable = True
             
             if resumable:
-                app.logger.info(f\"Recovering task {task.id} ({task.task_type}) - State verified on disk.\")
+                app.logger.info(f"Recovering task {task.id} ({task.task_type}) - State verified on disk.")
                 
-                # 3. Status Management: transition 'paused' -> 'pending' -> 'downloading/processing'
-                # This avoids race conditions and ensures the task is seen as active.
                 task.status = 'pending'
                 db.session.commit()
                 
                 if task.task_type == 'download':
-                    # We need the URL to resume download. 
-                    # Since we don't store URL in DB, we have a problem.
-                    # HOWEVER, for monitored channels or specific URLs, we might need a way to retrieve it.
-                    # If the URL is missing, we can't resume yt-dlp.
-                    # Wait, DownloadTask does NOT have a URL column.
-                    # Let's check if we can find it. 
-                    # Actually, if the task is 'download', and we don't have the URL, we can't resume.
-                    # We should probably log this as a failure.
-                    app.logger.error(f\"Cannot recover download task {task.id}: original URL not stored in database.\")
+                    app.logger.error(f"Cannot recover download task {task.id}: original URL not stored in database.")
                     task.status = 'error'
-                    task.error_log = \"Recovery failed: original URL not found in database.\"
+                    task.error_log = "Recovery failed: original URL not found in database."
                 
                 elif task.task_type == 'compress':
-                    # Compression has everything it needs (filename, preset, codec).
-                    # We need to recover preset and codec. They are not in DownloadTask.
-                    # We'll use defaults 'balanced' and 'H.264' as fallback, similar to retry_task.
-                    # Ideally, these should have been stored.
                     start_compress_async(task.filename, 'balanced', task.id, task.user_id, 'H.264')
                     recovered_count += 1
                 
                 db.session.commit()
             else:
-                app.logger.info(f\"Task {task.id} not resumable (no matching file on disk). Marking as error.\")
+                app.logger.info(f"Task {task.id} not resumable (no matching file on disk). Marking as error.")
                 task.status = 'error'
-                task.error_log = \"Recovery failed: no partial file found on disk.\"
+                task.error_log = "Recovery failed: no partial file found on disk."
                 db.session.commit()
                 
         except Exception as e:
-            app.logger.error(f\"Error recovering task {task.id}: {e}\")
+            app.logger.error(f"Error recovering task {task.id}: {e}")
             db.session.rollback()
-
-    app.logger.info(f\"Recovery sequence completed. {recovered_count} tasks resumed.\")
+    
+    app.logger.info(f"Recovery sequence completed. {recovered_count} tasks resumed.")
 
 
 def handle_shutdown(signum, frame):
