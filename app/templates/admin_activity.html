@@ -184,18 +184,18 @@
             const statusClass = 'status-' + task.status.toLowerCase();
             const progress = task.progress || 0;
             return `
-                <tr>
-                    <td><b>${escapeHtml(task.user)}</b></td>
-                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(task.filename || task.video_id)}">
-                        ${escapeHtml(task.filename || task.video_id || 'Unknown')}
-                    </td>
-                    <td><span class="status-pill ${statusClass}">${escapeHtml(task.status)}</span></td>
-                    <td>
-                        <div class="progress-mini"><div class="progress-mini-fill" style="width: ${progress}%"></div></div>
-                        <span style="font-size: 0.8rem; color: var(--text-dim);">${progress}%</span>
-                    </td>
-                    <td style="color: var(--text-dim); font-size: 0.8rem;">${task.created_at || 'N/A'}</td>
-                </tr>
+                        <tr>
+                            <td><b>${escapeHtml(task.username)}</b></td>
+                            <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(task.filename || task.video_id)}">
+                                ${escapeHtml(task.filename || task.video_id || 'Unknown')}
+                            </td>
+                            <td><span class="status-pill ${statusClass}">${escapeHtml(task.status)}</span></td>
+                            <td>
+                                <div class="progress-mini"><div class="progress-mini-fill" style="width: ${progress}%"></div></div>
+                                <span style="font-size: 0.8rem; color: var(--text-dim);">${progress}%</span>
+                            </td>
+                            <td style="color: var(--text-dim); font-size: 0.8rem;">${task.created_at ? new Date(task.created_at).toLocaleString() : 'N/A'}</td>
+                        </tr>
             `;
         }).join('');
     }

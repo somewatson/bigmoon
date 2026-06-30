@@ -2,6 +2,7 @@
 
 ## Project Tracking
 - **Todo List**: `TODO.md`
+- **Commits**: Always perform a git commit immediately after a planned feature or significant task in TODO.md has been completed.
 
 ## Developer Commands
 - **Run App (Local)**: `python app/main.py --debug`
