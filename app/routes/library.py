@@ -4,6 +4,7 @@ from flask import Blueprint, request, jsonify, send_from_directory
 from flask_login import login_required, current_user
 from models import db, DownloadTask
 from utils.system import format_size
+from urllib.parse import unquote
 
 library_bp = Blueprint('library', __name__)
 
@@ -172,7 +173,9 @@ def bulk_compress_files():
 @login_required
 def preview_video(filename):
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    safe_filename = os.path.basename(filename)
+    # Decode URL encoded characters (e.g. %F0%9F%93%8D)
+    decoded_filename = unquote(filename)
+    safe_filename = os.path.basename(decoded_filename)
     
     task = DownloadTask.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
     if not task and current_user.role != 'admin':
@@ -184,8 +187,9 @@ def preview_video(filename):
 @login_required
 def download_file(filename):
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
+    decoded_filename = unquote(filename)
+    task = DownloadTask.query.filter_by(filename=decoded_filename, user_id=current_user.id).first()
     if not task and current_user.role != 'admin':
         return "Unauthorized", 403
     
-    return send_from_directory(downloads_dir, filename, as_attachment=True)
+    return send_from_directory(downloads_dir, decoded_filename, as_attachment=True)
