@@ -155,6 +155,7 @@
             <div class="nav-submenu {% if request.endpoint in ['admin_dashboard', 'admin_users', 'system_status'] %}active{% endif %}" id="adminSubmenu">
                 <a class="submenu-item {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">📊 Command Center</a>
                 <a class="submenu-item {% if request.endpoint == 'admin_users' %}active{% endif %}" href="{{ url_for('admin_users') }}">👥 User Management</a>
+                <a class="submenu-item {% if request.endpoint == 'admin_activity' %}active{% endif %}" href="{{ url_for('admin_activity') }}">📈 Activity Monitor</a>
                 <a class="submenu-item {% if request.endpoint == 'system_status' %}active{% endif %}" href="{{ url_for('system_status') }}">⚙️ System Status</a>
             </div>
         </div>

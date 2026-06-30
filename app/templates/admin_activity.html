@@ -1,0 +1,244 @@
+{% extends "layout.html" %}
+
+{% block title %}Big Moon - Activity Monitor{% endblock %}
+
+{% block content %}
+<style>
+    .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+    .stat-card { 
+        background: var(--card-bg); 
+        padding: 20px; 
+        border-radius: 12px; 
+        border: 1px solid var(--border); 
+        display: flex; 
+        flex-direction: column; 
+        transition: transform 0.2s;
+        box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    .stat-card:hover { transform: translateY(-3px); border-color: var(--primary); }
+    .stat-label { font-size: 0.9rem; color: var(--text-dim); font-weight: 500; }
+    .stat-value { font-size: 2rem; font-weight: bold; color: var(--primary); margin-top: 5px; }
+
+    .filter-bar { display: flex; gap: 10px; margin-bottom: 20px; align-items: center; }
+    .filter-btn { 
+        background: #222; 
+        color: var(--text-dim); 
+        border: 1px solid var(--border); 
+        padding: 6px 15px; 
+        border-radius: 20px; 
+        cursor: pointer; 
+        font-size: 0.85rem; 
+        transition: 0.2s; 
+    }
+    .filter-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+    .filter-btn:hover:not(.active) { background: #333; color: white; }
+
+    .activity-table-container { 
+        background: var(--card-bg); 
+        border-radius: 12px; 
+        border: 1px solid var(--border); 
+        overflow: hidden; 
+        margin-bottom: 30px; 
+        box-shadow: 0 4px 15px rgba(0,0,0,0.3); 
+    }
+    .activity-table { width: 100%; border-collapse: collapse; text-align: left; }
+    .activity-table th { background: #252525; padding: 15px; font-size: 0.85rem; color: var(--text-dim); font-weight: 600; border-bottom: 1px solid var(--border); }
+    .activity-table td { padding: 12px 15px; font-size: 0.9rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+    .activity-table tr:last-child td { border-bottom: none; }
+    .activity-table tr:hover { background: rgba(255,255,255,0.02); }
+
+    .status-pill { 
+        padding: 3px 8px; 
+        border-radius: 12px; 
+        font-size: 0.75rem; 
+        font-weight: bold; 
+        text-transform: uppercase; 
+        display: inline-block; 
+    }
+    .status-pending { background: rgba(255, 193, 7, 0.2); color: #ffc107; border: 1px solid #ffc107; }
+    .status-downloading { background: rgba(0, 200, 83, 0.2); color: var(--success); border: 1px solid var(--success); }
+    .status-failed { background: rgba(255, 77, 77, 0.2); color: var(--error); border: 1px solid var(--error); }
+    .status-completed { background: rgba(145, 70, 255, 0.2); color: var(--primary); border: 1px solid var(--primary); }
+
+    .progress-mini { width: 100px; background: #333; height: 6px; border-radius: 3px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 8px; }
+    .progress-mini-fill { height: 100%; background: var(--primary); transition: width 0.3s ease; }
+
+    .user-summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 20px; }
+    .user-card { 
+        background: var(--card-bg); 
+        padding: 20px; 
+        border-radius: 12px; 
+        border: 1px solid var(--border); 
+        display: flex; 
+        flex-direction: column; 
+        gap: 10px; 
+    }
+    .user-card h3 { margin: 0; font-size: 1.1rem; display: flex; align-items: center; gap: 10px; }
+    .user-card .user-stats { display: flex; gap: 15px; font-size: 0.85rem; color: var(--text-dim); }
+    .user-card .user-stats span b { color: white; }
+</style>
+
+<div class="sticky-header">
+    <h1>📈 Activity Monitor</h1>
+    <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">Real-time tracking of all system tasks and user activity across the network.</p>
+</div>
+
+<div class="stats-grid" id="globalStats">
+    <div class="stat-card">
+        <span class="stat-label">Total Users</span>
+        <span class="stat-value" id="statTotalUsers">0</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Active Tasks</span>
+        <span class="stat-value" id="statActiveTasks">0</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Pending</span>
+        <span class="stat-value" id="statPendingTasks">0</span>
+    </div>
+    <div class="stat-card">
+        <span class="stat-label">Failed (24h)</span>
+        <span class="stat-value" id="statFailedTasks">0</span>
+    </div>
+</div>
+
+<div class="filter-bar">
+    <span style="font-size: 0.9rem; color: var(--text-dim); margin-right: 10px;">Filter:</span>
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('pending', this)">Pending</button>
+    <button class="filter-btn" onclick="setFilter('downloading', this)">Downloading</button>
+    <button class="filter-btn" onclick="setFilter('failed', this)">Failed</button>
+</div>
+
+<div class="activity-table-container">
+    <table class="activity-table">
+        <thead>
+            <tr>
+                <th>User</th>
+                <th>Video / File</th>
+                <th>Status</th>
+                <th>Progress</th>
+                <th>Created At</th>
+            </tr>
+        </thead>
+        <tbody id="activityTableBody">
+            <tr>
+                <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 40px;">Loading activity...</td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+
+<h2 style="margin-bottom: 20px;">👥 User Activity Summaries</h2>
+<div class="user-summary-grid" id="userSummaries">
+    <!-- User cards injected here -->
+</div>
+
+<script>
+    let currentFilter = 'all';
+
+    async function fetchActivity() {
+        try {
+            const response = await fetch('/api/admin/activity');
+            const data = await response.json();
+
+            if (data.error) {
+                console.error('Error fetching activity:', data.error);
+                return;
+            }
+
+            updateGlobalStats(data.stats);
+            updateActivityTable(data.tasks);
+            updateUserSummaries(data.user_summaries);
+        } catch (e) {
+            console.error('Failed to poll activity:', e);
+        }
+    }
+
+    function updateGlobalStats(stats) {
+        if (!stats) return;
+        document.getElementById('statTotalUsers').textContent = stats.total_users || 0;
+        document.getElementById('statActiveTasks').textContent = stats.active_tasks || 0;
+        document.getElementById('statPendingTasks').textContent = stats.pending_tasks || 0;
+        document.getElementById('statFailedTasks').textContent = stats.failed_tasks || 0;
+    }
+
+    function updateActivityTable(tasks) {
+        const tbody = document.getElementById('activityTableBody');
+        if (!tasks || tasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 40px;">No tasks found</td></tr>';
+            return;
+        }
+
+        const filteredTasks = tasks.filter(task => {
+            if (currentFilter === 'all') return true;
+            return task.status.toLowerCase() === currentFilter;
+        });
+
+        if (filteredTasks.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="5" style="text-align: center; color: var(--text-dim); padding: 40px;">No tasks matching filter</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filteredTasks.map(task => {
+            const statusClass = 'status-' + task.status.toLowerCase();
+            const progress = task.progress || 0;
+            return `
+                <tr>
+                    <td><b>${escapeHtml(task.user)}</b></td>
+                    <td style="max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${escapeHtml(task.filename || task.video_id)}">
+                        ${escapeHtml(task.filename || task.video_id || 'Unknown')}
+                    </td>
+                    <td><span class="status-pill ${statusClass}">${escapeHtml(task.status)}</span></td>
+                    <td>
+                        <div class="progress-mini"><div class="progress-mini-fill" style="width: ${progress}%"></div></div>
+                        <span style="font-size: 0.8rem; color: var(--text-dim);">${progress}%</span>
+                    </td>
+                    <td style="color: var(--text-dim); font-size: 0.8rem;">${task.created_at || 'N/A'}</td>
+                </tr>
+            `;
+        }).join('');
+    }
+
+    function updateUserSummaries(summaries) {
+        const container = document.getElementById('userSummaries');
+        if (!summaries || summaries.length === 0) {
+            container.innerHTML = '<p style="color: var(--text-dim);">No user activity data available.</p>';
+            return;
+        }
+
+        container.innerHTML = summaries.map(user => `
+            <div class="user-card">
+                <h3>👤 ${escapeHtml(user.username)}</h3>
+                <div class="user-stats">
+                    <span>Tasks: <b>${user.total_tasks}</b></span>
+                    <span>Completed: <b>${user.completed_tasks}</b></span>
+                    <span>Failed: <b>${user.failed_tasks}</b></span>
+                </div>
+                <div style="font-size: 0.8rem; color: var(--text-dim); margin-top: 5px;">
+                    Last active: ${user.last_active || 'Never'}
+                </div>
+            </div>
+        `).join('');
+    }
+
+    function setFilter(filter, btn) {
+        currentFilter = filter;
+        document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        // Immediately refresh table if we have data (though polling will do it anyway)
+        fetchActivity(); 
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+
+    // Initial load and poll
+    fetchActivity();
+    setInterval(fetchActivity, 7000);
+</script>
+{% endblock %}

@@ -2,16 +2,21 @@
 
 ## 🛠️ High Priority
 
+### 7. Admin Activity Monitor
+**Goal**: Create a dedicated view for administrators to monitor system-wide user activity and task status.
+- [ ] **Backend API**:
+    - [ ] Implement `/admin/activity` route to render the monitor page.
+    - [ ] Implement `/api/admin/activity` endpoint to provide real-time JSON stats (all tasks + user mapping).
+- [ ] **Frontend UI**:
+    - [ ] Add "Activity Monitor" link to the admin navigation submenu.
+    - [ ] Create `admin_activity.html` with global stats cards.
+    - [ ] Implement a live-updating task table with status filters.
+    - [ ] Add user-specific activity summaries.
+- [ ] **Verification**:
+    - [ ] Verify admin-only access (403 for regular users).
+    - [ ] Test real-time updates via polling.
+
 ### 6. Advanced Chat Synchronization
 **Goal**: Implement a synchronized chat experience in the preview modal where chat follows the video playback.
-- [x] **Data Management**: Store fetched chat messages in a variable instead of just rendering static HTML.
-- [x] **Time Synchronization**: Implement a `timeupdate` listener on the video player to auto-scroll the chat container to the current timestamp.
-- [x] **Interactive Seeking**: Implement "Click-to-Seek" functionality (clicking a chat message seeks the video to that timestamp).
-- [x] **Visual Polish**: 
-    - [x] Add a "current message" highlight effect.
-    - [x] Format raw seconds into `MM:SS` timestamps.
-    - [x] Implement smooth scrolling for the chat container.
-- [x] **UI Fixes**: 
-    - [x] Fix visibility of the "Download Chat" button in the preview modal.
-    - [x] Add a "Download Chat" button to the Library view.
+... (remaining items)
 

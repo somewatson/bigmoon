@@ -254,6 +254,52 @@ def admin_dashboard():
                            user_count=user_count, 
                            task_count=task_count)
 
+@app.route('/admin/activity')
+@login_required
+def admin_activity():
+    if current_user.role != 'admin':
+        return "Access denied", 403
+    return render_template('admin_activity.html')
+
+@app.route('/api/admin/activity')
+@login_required
+def admin_activity_api():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    try:
+        # Stats
+        total_active = DownloadTask.query.filter(DownloadTask.status.in_(['pending', 'downloading', 'processing'])).count()
+        total_pending = DownloadTask.query.filter_by(status='pending').count()
+        total_failed = DownloadTask.query.filter_by(status='error').count()
+        
+        # Task list joined with users
+        tasks_query = db.session.query(DownloadTask, User.username).join(User, DownloadTask.user_id == User.id).order_by(DownloadTask.created_at.desc()).all()
+        
+        tasks_list = []
+        for task, username in tasks_query:
+            tasks_list.append({
+                'id': task.id,
+                'username': username,
+                'video_id': task.video_id,
+                'filename': task.filename,
+                'status': task.status,
+                'progress': task.progress,
+                'created_at': task.created_at.isoformat() if task.created_at else None
+            })
+            
+        return jsonify({
+            'stats': {
+                'active': total_active,
+                'pending': total_pending,
+                'failed': total_failed
+            },
+            'tasks': tasks_list
+        })
+    except Exception as e:
+        app.logger.error(f"Error fetching admin activity stats: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/admin/users')
 @login_required
 def admin_users():
