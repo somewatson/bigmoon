@@ -5,7 +5,7 @@ import argparse
 import signal
 import time
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.security import generate_password_hash
@@ -20,8 +20,13 @@ except ImportError:
 from models import db, User, Favorite, DownloadTask, MonitoredChannel, ChatMessage
 from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path
 from chat_manager import start_chat_download_async, download_chat_sync
+from utils.system import cleanup_temp_files
 
-
+# Import blueprints
+from routes.admin import admin_bp
+from routes.tasks import tasks_bp
+from routes.library import library_bp
+from routes.social import social_bp
 
 load_dotenv()
 
@@ -30,13 +35,11 @@ app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'big-moon-secret-key')
 app.config['SQLALCHEMY_DATABASE_URI'] = os.getenv('DATABASE_URL', 'sqlite:////app/data/users.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-# Handle command line arguments for logging
 parser = argparse.ArgumentParser()
 parser.add_argument('--debug', action='store_true', help='Enable debug logging')
 args, unknown = parser.parse_known_args()
 
 log_level = logging.DEBUG if args.debug else logging.INFO
-
 logging.basicConfig(
     level=log_level,
     format='%(asctime)s [%(levelname)s] %(name)s: %(message)s'
@@ -50,7 +53,6 @@ class PollingFilter(logging.Filter):
         self.interval = 60
 
     def filter(self, record):
-        # Werkzeug logs request paths in the message
         if 'GET /api/tasks' in record.getMessage():
             now = time.time()
             if now - self.last_logged < self.interval:
@@ -58,7 +60,6 @@ class PollingFilter(logging.Filter):
             self.last_logged = now
         return True
 
-# Apply filter to werkzeug logger to silence frequent polling logs
 logging.getLogger('werkzeug').addFilter(PollingFilter())
 
 db.init_app(app)
@@ -70,100 +71,41 @@ login_manager.login_view = 'login'
 def load_user(user_id):
     return User.query.get(int(user_id))
 
-def cleanup_temp_files():
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    try:
-        files = os.listdir(downloads_dir)
-        temp_files = [f for f in files if f.endswith('.temp.mp4') or f.endswith('.temp')]
-        for f in temp_files:
-            os.remove(os.path.join(downloads_dir, f))
-        
-        # Also clean up orphaned thumbnails
-        thumb_dir = os.path.join(downloads_dir, '.thumbnails')
-        if os.path.exists(thumb_dir):
-            thumb_files = os.listdir(thumb_dir)
-            actual_files = set(files)
-            for tf in thumb_files:
-                # If the thumbnail is for a file that no longer exists, delete it
-                original_filename = tf.replace('.jpg', '')
-                if original_filename not in actual_files:
-                    os.remove(os.path.join(thumb_dir, tf))
-                    
-        if temp_files:
-            logging.info(f"Cleaned up {len(temp_files)} temporary files from {downloads_dir}")
-    except Exception as e:
-        logging.error(f"Error cleaning up temp files: {e}")
+# Register Blueprints
+app.register_blueprint(admin_bp)
+app.register_blueprint(tasks_bp)
+app.register_blueprint(library_bp)
+app.register_blueprint(social_bp)
 
 def bootstrap_admin():
     with app.app_context():
         db.create_all()
-        
-        # Cleanup temporary files on startup
         cleanup_temp_files()
         
-        # Migration: Add error_log column to DownloadTask if it doesn't exist
-        try:
-            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN error_log TEXT"))
-            db.session.commit()
-            app.logger.info("Migrated database: added error_log column to download_task")
-        except Exception as e:
-            # If column already exists, SQLite will throw an error; we can safely ignore it
-            db.session.rollback()
-            app.logger.debug(f"Database migration note: {e}")
-
-        try:
-            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN chat_json_path TEXT"))
-            db.session.commit()
-            app.logger.info("Migrated database: added chat_json_path column to download_task")
-        except Exception as e:
-            db.session.rollback()
-            app.logger.debug(f"Database migration note: {e}")
-
-        try:
-            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN encoder_type TEXT"))
-            db.session.commit()
-            app.logger.info("Migrated database: added encoder_type column to download_task")
-        except Exception as e:
-            db.session.rollback()
-            app.logger.debug(f"Database migration note: {e}")
-
-        try:
-            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN chat_json_path TEXT"))
-            db.session.commit()
-            app.logger.info("Migrated database: added chat_json_path column to download_task")
-        except Exception as e:
-            db.session.rollback()
-            app.logger.debug(f"Database migration note: {e}")
-
-        try:
-            db.session.execute(db.text("ALTER TABLE download_task ADD COLUMN chat_status TEXT"))
-            db.session.commit()
-            app.logger.info("Migrated database: added chat_status column to download_task")
-        except Exception as e:
-            db.session.rollback()
-            app.logger.debug(f"Database migration note: {e}")
+        migrations = [
+            "ALTER TABLE download_task ADD COLUMN error_log TEXT",
+            "ALTER TABLE download_task ADD COLUMN chat_json_path TEXT",
+            "ALTER TABLE download_task ADD COLUMN encoder_type TEXT",
+            "ALTER TABLE download_task ADD COLUMN chat_status TEXT"
+        ]
+        for sql in migrations:
+            try:
+                db.session.execute(db.text(sql))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         try:
             db.session.execute(db.text("CREATE TABLE IF NOT EXISTS monitored_channel (id INTEGER PRIMARY KEY AUTOINCREMENT, user_id INTEGER NOT NULL, channel_name TEXT NOT NULL, twitch_user_id TEXT, enabled BOOLEAN DEFAULT 1, auto_compress BOOLEAN DEFAULT 0, compression_presets TEXT DEFAULT '', target_codec TEXT DEFAULT 'AV1', delete_original BOOLEAN DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, FOREIGN KEY(user_id) REFERENCES user(id))"))
             db.session.commit()
-            app.logger.info("Migrated database: ensured monitored_channel table exists")
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Failed to create monitored_channel table: {e}")
 
-        # Startup Recovery: Resume interrupted tasks instead of marking them as error
         recover_interrupted_tasks()
 
 def recover_interrupted_tasks():
-    """
-    Identifies tasks that were interrupted (status 'paused' or stuck in 'downloading/processing')
-    and attempts to resume them based on local file state.
-    """
     app.logger.info("Starting Recovery Manager: checking for interrupted tasks...")
-    
-    # 1. Identify interrupted tasks
-    # 'paused' tasks are explicitly paused.
-    # 'downloading' or 'processing' tasks that are still in this state on startup are considered stuck.
     interrupted_tasks = DownloadTask.query.filter(
         DownloadTask.status.in_(['paused', 'downloading', 'processing'])
     ).all()
@@ -172,58 +114,42 @@ def recover_interrupted_tasks():
         app.logger.info("No interrupted tasks found for recovery.")
         return
     
-    app.logger.info(f"Found {len(interrupted_tasks)} interrupted tasks. Analyzing state...")
-    
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     recovered_count = 0
     
     for task in interrupted_tasks:
         try:
-            # 2. Verify current state of local file on disk
             resumable = False
-            
             if task.task_type == 'download':
-                # For downloads, we check if there's a .part or .ytdl file that matches the expected pattern
                 if task.filename and os.path.exists(os.path.join(downloads_dir, task.filename)):
                     resumable = True
-                else:
-                    if task.video_id:
-                        temp_files = [f for f in os.listdir(downloads_dir) if task.video_id in f and f.endswith(('.part', '.ytdl'))]
-                        if temp_files:
-                            resumable = True
-            
+                elif task.video_id:
+                    temp_files = [f for f in os.listdir(downloads_dir) if task.video_id in f and f.endswith(('.part', '.ytdl'))]
+                    if temp_files:
+                        resumable = True
             elif task.task_type == 'compress':
                 if task.filename and os.path.exists(os.path.join(downloads_dir, task.filename)):
                     resumable = True
             
             if resumable:
-                app.logger.info(f"Recovering task {task.id} ({task.task_type}) - State verified on disk.")
-                
                 task.status = 'pending'
                 db.session.commit()
-                
                 if task.task_type == 'download':
-                    app.logger.error(f"Cannot recover download task {task.id}: original URL not stored in database.")
                     task.status = 'error'
                     task.error_log = "Recovery failed: original URL not found in database."
-                
                 elif task.task_type == 'compress':
                     start_compress_async(task.filename, 'balanced', task.id, task.user_id, 'H.264')
                     recovered_count += 1
-                
                 db.session.commit()
             else:
-                app.logger.info(f"Task {task.id} not resumable (no matching file on disk). Marking as error.")
                 task.status = 'error'
                 task.error_log = "Recovery failed: no partial file found on disk."
                 db.session.commit()
-                
         except Exception as e:
             app.logger.error(f"Error recovering task {task.id}: {e}")
             db.session.rollback()
     
     app.logger.info(f"Recovery sequence completed. {recovered_count} tasks resumed.")
-
 
 def handle_shutdown(signum, frame):
     logging.info(f"Received signal {signum}, shutting down gracefully...")
@@ -232,8 +158,6 @@ def handle_shutdown(signum, frame):
 
 @app.before_request
 def add_asset_version():
-    # Add a global version to be used in templates for cache busting
-    # In a real production app, this could be a git commit hash or a version number
     from flask import g
     g.asset_version = int(time.time())
 
@@ -249,29 +173,6 @@ def login():
         flash('Invalid username or password')
     return render_template('login.html')
 
-@app.route('/api/system/ffmpeg')
-@login_required
-def ffmpeg_status():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Forbidden'}), 403
-    
-    try:
-        import subprocess
-        result = subprocess.run(['ffmpeg', '-encoders'], capture_output=True, text=True, check=True)
-        encoders = result.stdout
-        
-        # Check for common HW accelerators
-        status = {
-            'qsv': 'h264_qsv' in encoders or 'hevc_qsv' in encoders,
-            'nvenc': 'h264_nvenc' in encoders or 'hevc_nvenc' in encoders,
-            'vaapi': 'h264_vaapi' in encoders or 'hevc_vaapi' in encoders,
-            'amf': 'h264_amf' in encoders or 'hevc_amf' in encoders,
-            'libx264': 'libx264' in encoders
-        }
-        return jsonify(status)
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
 @app.route('/logout')
 @login_required
 def logout():
@@ -284,1031 +185,66 @@ def index():
     tab = request.args.get('tab', 'search')
     return render_template('index.html', current_tab=tab)
 
-@app.route('/admin')
-@login_required
-def admin_dashboard():
-    if current_user.role != 'admin':
-        return "Access denied", 403
-    
-    # Basic system stats
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    disk_info = "Unknown"
-    try:
-        import shutil
-        total, used, free = shutil.disk_usage(downloads_dir)
-        disk_info = f"{format_size(used)} used / {format_size(total)} total"
-    except Exception:
-        pass
-
-    user_count = User.query.count()
-    task_count = DownloadTask.query.count()
-    
-    return render_template('admin_dashboard.html', 
-                           disk_info=disk_info, 
-                           user_count=user_count, 
-                           task_count=task_count)
-
-@app.route('/admin/activity')
-@login_required
-def admin_activity():
-    if current_user.role != 'admin':
-        return "Access denied", 403
-    return render_template('admin_activity.html')
-
-@app.route('/api/admin/activity')
-@login_required
-def admin_activity():
-    if current_user.role != 'admin':
-        return "Access denied", 403
-    return render_template('admin_activity.html')
-
-@app.route('/api/admin/activity')
-@login_required
-def admin_activity_api():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Forbidden'}), 403
-    
-    try:
-        # Stats
-        total_users = User.query.count()
-        total_active = DownloadTask.query.filter(DownloadTask.status.in_(['pending', 'downloading', 'processing'])).count()
-        total_pending = DownloadTask.query.filter_by(status='pending').count()
-        total_failed = DownloadTask.query.filter_by(status='error').count()
-        
-        # Task list joined with users
-        tasks_query = db.session.query(DownloadTask, User.username).join(User, DownloadTask.user_id == User.id).order_by(DownloadTask.created_at.desc()).all()
-        
-        tasks_list = []
-        user_stats_map = {}
-
-        for task, username in tasks_query:
-            tasks_list.append({
-                'id': task.id,
-                'username': username,
-                'video_id': task.video_id,
-                'filename': task.filename,
-                'status': task.status,
-                'progress': task.progress,
-                'created_at': task.created_at.isoformat() if task.created_at else None
-            })
-            
-            # Aggregating user summaries
-            if username not in user_stats_map:
-                user_stats_map[username] = {'total': 0, 'completed': 0, 'failed': 0, 'last_active': task.created_at}
-            
-            user_stats_map[username]['total'] += 1
-            if task.status == 'completed':
-                user_stats_map[username]['completed'] += 1
-            elif task.status == 'error':
-                user_stats_map[username]['failed'] += 1
-            
-            if task.created_at and (not user_stats_map[username]['last_active'] or task.created_at > user_stats_map[username]['last_active']):
-                user_stats_map[username]['last_active'] = task.created_at
-
-        user_summaries = [
-            {
-                'username': name,
-                'total_tasks': stats['total'],
-                'completed_tasks': stats['completed'],
-                'failed_tasks': stats['failed'],
-                'last_active': stats['last_active'].isoformat() if stats['last_active'] else 'Never'
-            }
-            for name, stats in user_stats_map.items()
-        ]
-            
-        return jsonify({
-            'stats': {
-                'total_users': total_users,
-                'active': total_active,
-                'pending': total_pending,
-                'failed': total_failed
-            },
-            'tasks': tasks_list,
-            'user_summaries': user_summaries
-        })
-    except Exception as e:
-        app.logger.error(f"Error fetching admin activity stats: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/admin/users')
-@login_required
-def admin_users():
-    if current_user.role != 'admin':
-        return "Access denied", 403
-    return render_template('admin_users.html')
-
-@app.route('/api/admin/users', methods=['GET'])
-@login_required
-def admin_users_list():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Forbidden'}), 403
-    users = User.query.all()
-    return jsonify({'users': [{'username': u.username, 'role': u.role} for u in users]})
-
-@app.route('/admin/delete_user', methods=['POST'])
-@login_required
-def delete_user():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Forbidden'}), 403
-    data = request.json
-    username = data.get('username')
-    if not username:
-        return jsonify({'error': 'Username required'}), 400
-    
-    user = User.query.filter_by(username=username).first()
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-    
-    # Prevent deleting the last admin or yourself
-    if user.role == 'admin' and User.query.filter_by(role='admin').count() <= 1:
-        return jsonify({'error': 'Cannot delete the last administrator'}), 400
-    if user.id == current_user.id:
-        return jsonify({'error': 'Cannot delete yourself'}), 400
-        
-    db.session.delete(user)
-    db.session.commit()
-    return jsonify({'message': f'User {username} deleted successfully'})
-
-@app.route('/system/status')
-@login_required
-def system_status():
-    if current_user.role != 'admin':
-        return "Access denied", 403
-    return render_template('system_status.html')
-
-@app.route('/admin/create_user', methods=['POST'])
-@login_required
-def create_user():
-    if current_user.role != 'admin':
-        return jsonify({'error': 'Forbidden'}), 403
-    
-    username = request.form.get('username')
-    password = request.form.get('password')
-    role = request.form.get('role', 'user')
-
-    if not username or not password:
-        return jsonify({'error': 'Username and password required'}), 400
-    
-    if User.query.filter_by(username=username).first():
-        return jsonify({'error': 'User already exists'}), 400
-
-    user = User(username=username, role=role)
-    user.set_password(password)
-    db.session.add(user)
-    db.session.commit()
-    return jsonify({'message': f'User {username} created successfully'})
-
-@app.route('/api/thumbnails/<path:filename>')
-@login_required
-def get_thumbnail(filename):
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    thumb_dir = os.path.join(downloads_dir, '.thumbnails')
-    
-    # Ensure thumbnail directory exists
-    if not os.path.exists(thumb_dir):
-        try:
-            os.makedirs(thumb_dir, exist_ok=True)
-        except Exception as e:
-            return jsonify({'error': f'Could not create thumbnail directory: {str(e)}'}), 500
-
-    # Create a cleaner thumbnail filename (replace extension with .jpg)
-    base_filename = os.path.splitext(filename)[0]
-    thumb_filename = f"{base_filename}.jpg"
-    thumb_path = os.path.join(thumb_dir, thumb_filename)
-    video_path = os.path.join(downloads_dir, filename)
-
-    # Check if cached thumbnail exists
-    if os.path.exists(thumb_path):
-        return send_from_directory(thumb_dir, thumb_filename)
-
-    # Verify video file exists
-    if not os.path.exists(video_path):
-        return jsonify({'error': 'Video file not found'}), 404
-
-    # Generate thumbnail using FFmpeg
-    # -ss 00:00:05: seek to 5 seconds
-    # -i: input file
-    # -vframes 1: extract one frame
-    # -q:v 2: high quality
-    # -vf scale=160:-1: scale to 160px width, keep aspect ratio
-    # Generate thumbnail using FFmpeg
-    # -ss 00:00:05: seek to 5 seconds
-    # -i: input file
-    # -vframes 1: extract one frame
-    # -q:v 2: high quality
-    # -vf scale=160:-1: scale to 160px width, keep aspect ratio
-    try:
-        import subprocess
-        cmd = [
-            'ffmpeg', '-y', 
-            '-ss', '00:00:05', 
-            '-i', video_path, 
-            '-vframes', '1', 
-            '-q:v', '2', 
-            '-vf', 'scale=160:-1', 
-            thumb_path
-        ]
-        subprocess.run(cmd, check=True, capture_output=True, timeout=30)
-        return send_from_directory(thumb_dir, thumb_filename)
-    except subprocess.CalledProcessError as e:
-        error_msg = e.stderr.decode() if e.stderr else str(e)
-        app.logger.error(f"FFmpeg failed for {filename}: {error_msg}")
-        
-        if "moov atom not found" in error_msg or "Invalid data found" in error_msg:
-            return jsonify({'error': 'Incomplete file', 'status': 'corrupted'}), 206
-            
-        return jsonify({'error': f'FFmpeg failure: {error_msg}'}), 500
-    except subprocess.TimeoutExpired:
-        app.logger.error(f"Thumbnail generation timed out for {filename}")
-        return jsonify({'error': 'Thumbnail generation timed out'}), 504
-    except Exception as e:
-        app.logger.error(f"Thumbnail generation failed for {filename}: {str(e)}")
-        return jsonify({'error': f'Thumbnail generation failed: {str(e)}'}), 500
-
-@app.route('/api/system/metrics')
-@login_required
-def system_metrics():
-    if psutil is None:
-        return jsonify({'error': 'psutil not installed'}), 500
-    
-    try:
-        # Use a small interval to ensure we get a reading. 
-        # interval=None returns 0.0 on the first call.
-        cpu = psutil.cpu_percent(interval=0.1)
-        mem = psutil.virtual_memory().percent
-        
-        # If metrics are still 0, we can try direct proc reads as a fallback
-        if cpu == 0.0 and mem == 0.0:
-            # Fallback to manual /proc reading if available
-            try:
-                # Read Memory from /proc/meminfo
-                with open('/proc/meminfo', 'r') as f:
-                    lines = f.readlines()
-                    mem_total = 0
-                    mem_available = 0
-                    for line in lines:
-                        if 'MemTotal:' in line:
-                            mem_total = int(line.split()[1])
-                        elif 'MemAvailable:' in line:
-                            mem_available = int(line.split()[1])
-                    if mem_total > 0:
-                        mem = round(((mem_total - mem_available) / mem_total) * 100, 1)
-            except:
-                pass
-
-            try:
-                # Basic CPU load as fallback
-                import os
-                load1, load5, load15 = os.getloadavg()
-                # This is not a %, but we can use it as an indicator
-                # For simplicity, if load exists, we return a dummy non-zero or just the load
-                # But psutil with 0.1s interval usually works in Docker if /proc is mounted.
-                pass
-            except:
-                pass
-
-        # Final check to avoid reporting 0.0 if we're actually restricted
-        if cpu == 0.0 and mem == 0.0:
-            return jsonify({'error': 'Metrics unavailable in this environment'}), 200
-            
-        return jsonify({
-            'cpu': cpu,
-            'memory': mem
-        })
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/tasks/retry/<int:task_id>', methods=['POST'])
-@login_required
-def retry_task(task_id):
-    task = DownloadTask.query.get(task_id)
-    if not task or task.user_id != current_user.id:
-        return jsonify({'error': 'Task not found or unauthorized'}), 404
-    
-    if task.status not in ['error', 'cancelled']:
-        return jsonify({'error': 'Only failed or cancelled tasks can be retried'}), 400
-
-    if task.task_type == 'download':
-        # For downloads, we need the original URL. We can't store it in DB’s DownloadTask, 
-        # so we'd need to find it or ask the user. 
-        # Actually, let's check if we can retrieve it from logs or if we should only retry compression.
-        return jsonify({'error': 'Direct download retry not supported via API yet. Please re-add the URL.'}), 400
-    
-    elif task.task_type == 'compress':
-        # Compression tasks have the input filename stored
-        if not task.filename:
-            return jsonify({'error': 'Input file missing, cannot retry compression'}), 400
-        
-        # Recover preset and codec from filename if possible, or use defaults
-        # Filename format: compressed_{codec}_{preset}_{original_filename}
-        # However, the original task record is what we are retrying.
-        # Since we don't store preset/codec in DownloadTask, we'll use 'balanced' and 'H.264' as defaults
-        # or try to parse them if this was a previous failed attempt.
-        
-        # For now, let's implement the compression retry with defaults or look for a way to store them.
-        # A better way is to create a NEW task and link it, but here we just restart the process.
-        start_compress_async(task.filename, 'balanced', task.id, current_user.id, 'H.264')
-        update_task_progress(task.id, 'pending', progress=0.0)
-        return jsonify({'message': 'Compression retry started'})
-
-    return jsonify({'error': 'Unknown task type'}), 400
-
-@app.route('/api/tasks/cancel/<int:task_id>', methods=['POST'])
-@login_required
-def cancel_task_route(task_id):
-    task = DownloadTask.query.get(task_id)
-    if not task or task.user_id != current_user.id:
-        return jsonify({'error': 'Task not found or unauthorized'}), 404
-    
-    if task.status in ['completed', 'error']:
-        return jsonify({'error': 'Cannot cancel a finished task'}), 400
-    
-    if cancel_task(task_id):
-        update_task_progress(task_id, 'error', error_log="Task cancelled by user")
-        return jsonify({'message': 'Task cancelled successfully'})
-    else:
-        return jsonify({'error': 'Task could not be cancelled (possibly already finished)'}), 500
-
-def get_twitch_token():
-    client_id = os.getenv('TWITCH_CLIENT_ID')
-    client_secret = os.getenv('TWITCH_CLIENT_SECRET')
-    url = f'https://id.twitch.tv/oauth2/token?client_id={client_id}&client_secret={client_secret}&grant_type=client_credentials'
-    response = requests.post(url)
-    response.raise_for_status()
-    return response.json()['access_token']
+def get_twitch_token_internal():
+    from utils.system import get_twitch_token
+    return get_twitch_token()
 
 def check_for_new_vods():
-    """Background task to check monitored channels for new VODs."""
     with app.app_context():
         logging.info("Checking for new VODs across monitored channels...")
         try:
             monitored_channels = MonitoredChannel.query.filter_by(enabled=True).all()
             if not monitored_channels:
-                logging.info("No enabled monitored channels found.")
                 return
 
-            token = get_twitch_token()
+            token = get_twitch_token_internal()
             headers = {
                 'Client-ID': os.getenv('TWITCH_CLIENT_ID'),
                 'Authorization': f'Bearer {token}'
             }
 
             for channel in monitored_channels:
-                logging.info(f"Checking channel: {channel.channel_name}")
-                
-                # 1. Get Twitch User ID if not already stored
                 user_id = channel.twitch_user_id
                 if not user_id:
                     user_res = requests.get(f'https://api.twitch.tv/helix/users?login={channel.channel_name}', headers=headers)
                     user_res.raise_for_status()
                     user_data = user_res.json().get('data')
-                    if not user_data:
-                        logging.warning(f"Channel {channel.channel_name} not found on Twitch.")
-                        continue
+                    if not user_data: continue
                     user_id = user_data[0]['id']
                     channel.twitch_user_id = user_id
                     db.session.commit()
 
-                # 2. Fetch latest VODs
                 vod_res = requests.get(f'https://api.twitch.tv/helix/videos?user_id={user_id}', headers=headers)
                 vod_res.raise_for_status()
                 videos = vod_res.json().get('data', [])
 
-                # 3. Filter and trigger downloads
                 now = datetime.utcnow()
                 twenty_four_hours_ago = now - timedelta(hours=24)
-                
                 for video in videos:
                     video_id = video['id']
                     created_at = datetime.strptime(video['created_at'], '%Y-%m-%dT%H:%M:%SZ')
-                    
-                    # Filter: Only if created within last 24h OR created after monitoring started
-                    is_recent = created_at >= twenty_four_hours_ago
-                    is_after_monitoring = created_at >= channel.created_at
-                    
-                    if not (is_recent or is_after_monitoring):
+                    if not (created_at >= twenty_four_hours_ago or created_at >= channel.created_at):
                         continue
-
-                    # Filter: Duplicate check
-                    exists = DownloadTask.query.filter_by(video_id=video_id).first()
-                    if exists:
+                    if DownloadTask.query.filter_by(video_id=video_id).first():
                         continue
-
-                    logging.info(f"New VOD found for {channel.channel_name}: {video['title']} ({video_id})")
                     
-                    # Trigger Download
-                    task = DownloadTask(
-                        user_id=channel.user_id, 
-                        video_id=video_id, 
-                        status='pending', 
-                        task_type='download'
-                    )
+                    task = DownloadTask(user_id=channel.user_id, video_id=video_id, status='pending', task_type='download')
                     db.session.add(task)
                     db.session.commit()
-                    
                     start_download_async(video['url'], video_id, task.id)
                     start_chat_download_async(video_id, task.id)
-
-            logging.info("Finished checking all monitored channels.")
         except Exception as e:
             logging.error(f"Error in background monitoring worker: {e}")
 
 def setup_scheduler():
     scheduler = BackgroundScheduler()
-    # Poll every 30 minutes
     scheduler.add_job(func=check_for_new_vods, trigger='interval', minutes=30)
     scheduler.start()
     return scheduler
 
-@app.route('/api/videos', methods=['POST'])
-@login_required
-def list_videos():
-    channel_name = request.json.get('channel')
-    if not channel_name:
-        return jsonify({'error': 'Channel name is required'}), 400
-    
-    try:
-        token = get_twitch_token()
-        headers = {
-            'Client-ID': os.getenv('TWITCH_CLIENT_ID'),
-            'Authorization': f'Bearer {token}'
-        }
-        
-        # 1. Get User ID
-        user_res = requests.get(f'https://api.twitch.tv/helix/users?login={channel_name}', headers=headers)
-        user_res.raise_for_status()
-        user_data = user_res.json().get('data')
-        if not user_data:
-            return jsonify({'error': 'Channel not found'}), 404
-        
-        user_id = user_data[0]['id']
-        
-        # 2. Get VODs
-        vod_res = requests.get(f'https://api.twitch.tv/helix/videos?user_id={user_id}', headers=headers)
-        vod_res.raise_for_status()
-        videos = vod_res.json().get('data', [])
-        
-        return jsonify({'channel_info': user_data[0], 'videos': videos})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/favorites', methods=['GET', 'POST'])
-@login_required
-def manage_favorites():
-    if request.method == 'POST':
-        data = request.json
-        channel = data.get('channel')
-        if not channel:
-            return jsonify({'error': 'Channel name required'}), 400
-        
-        # Toggle favorite
-        fav = Favorite.query.filter_by(user_id=current_user.id, channel_name=channel).first()
-        if fav:
-            db.session.delete(fav)
-            db.session.commit()
-            return jsonify({'status': 'removed'})
-        else:
-            new_fav = Favorite(user_id=current_user.id, channel_name=channel)
-            db.session.add(new_fav)
-            db.session.commit()
-            return jsonify({'status': 'added'})
-            
-    # GET all favorites
-    favs = Favorite.query.filter_by(user_id=current_user.id).all()
-    
-    # Enrich favorites with profile images from Twitch
-    enriched_favs = []
-    try:
-        token = get_twitch_token()
-        headers = {
-            'Client-ID': os.getenv('TWITCH_CLIENT_ID'),
-            'Authorization': f'Bearer {token}'
-        }
-        
-        # Fetch favorite names in chunks of 50 to avoid URL length and rate limits
-        names = [f.channel_name for f in favs]
-        if names:
-            user_map = {}
-            chunk_size = 50
-            for i in range(0, len(names), chunk_size):
-                chunk = names[i:i + chunk_size]
-                try:
-                    # Twitch API requires multiple login parameters: login=foo&login=bar
-                    login_params = '&'.join([f'login={name}' for name in chunk])
-                    user_res = requests.get(
-                        f"https://api.twitch.tv/helix/users?{login_params}", 
-                        headers=headers,
-                        timeout=10
-                    )
-                    user_res.raise_for_status()
-                    users_data = user_res.json().get('data', [])
-                    for u in users_data:
-                        user_map[u['login'].lower()] = u
-                except Exception as e:
-                    app.logger.error(f"Error fetching chunk {i//chunk_size + 1}: {e}")
-            
-            for f in favs:
-                u_info = user_map.get(f.channel_name.lower(), {})
-                enriched_favs.append({
-                    'channel_name': f.channel_name,
-                    'profile_image_url': u_info.get('profile_image_url', ''),
-                    'description': u_info.get('description', '')
-                })
-        else:
-            enriched_favs = []
-    except Exception as e:
-        app.logger.error(f"Error enriching favorites: {e}")
-        # Fallback to names only if API fails
-        enriched_favs = [{'channel_name': f.channel_name, 'profile_image_url': ''} for f in favs]
-
-    return jsonify({'favorites': enriched_favs})
-
-@app.route('/api/monitored', methods=['GET', 'POST', 'PUT', 'DELETE'])
-@login_required
-def manage_monitored():
-    if request.method == 'GET':
-        channels = MonitoredChannel.query.filter_by(user_id=current_user.id).all()
-        return jsonify({
-            'channels': [{
-                'id': c.id,
-                'channel_name': c.channel_name,
-                'enabled': c.enabled,
-                'auto_compress': c.auto_compress,
-                'compression_presets': c.compression_presets,
-                'target_codec': c.target_codec,
-                'delete_original': c.delete_original
-            } for c in channels]
-        })
-
-    if request.method == 'POST':
-        data = request.json
-        channel_name = data.get('channel_name')
-        if not channel_name:
-            return jsonify({'error': 'Channel name is required'}), 400
-        
-        # Avoid duplicates for same user
-        if MonitoredChannel.query.filter_by(user_id=current_user.id, channel_name=channel_name).first():
-            return jsonify({'error': 'Channel already monitored'}), 400
-            
-        new_channel = MonitoredChannel(
-            user_id=current_user.id,
-            channel_name=channel_name,
-            enabled=data.get('enabled', True),
-            auto_compress=data.get('auto_compress', False),
-            compression_presets=data.get('compression_presets', ''),
-            target_codec=data.get('target_codec', 'AV1'),
-            delete_original=data.get('delete_original', False)
-        )
-        db.session.add(new_channel)
-        db.session.commit()
-        return jsonify({'message': 'Channel added to monitoring list', 'id': new_channel.id})
-
-    if request.method == 'PUT':
-        data = request.json
-        channel_id = data.get('id')
-        if not channel_id:
-            return jsonify({'error': 'Channel ID required'}), 400
-            
-        channel = MonitoredChannel.query.filter_by(id=channel_id, user_id=current_user.id).first()
-        if not channel:
-            return jsonify({'error': 'Channel not found'}), 404
-            
-        channel.enabled = data.get('enabled', channel.enabled)
-        channel.auto_compress = data.get('auto_compress', channel.auto_compress)
-        channel.compression_presets = data.get('compression_presets', channel.compression_presets)
-        channel.target_codec = data.get('target_codec', channel.target_codec)
-        channel.delete_original = data.get('delete_original', channel.delete_original)
-        db.session.commit()
-        return jsonify({'message': 'Monitoring settings updated'})
-
-    if request.method == 'DELETE':
-        data = request.json
-        channel_id = data.get('id')
-        if not channel_id:
-            return jsonify({'error': 'Channel ID required'}), 400
-            
-        channel = MonitoredChannel.query.filter_by(id=channel_id, user_id=current_user.id).first()
-        if not channel:
-            return jsonify({'error': 'Channel not found'}), 404
-            
-        db.session.delete(channel)
-        db.session.commit()
-        return jsonify({'message': 'Channel removed from monitoring list'})
-
-    return jsonify({'error': 'Method not allowed'}), 405
-
-def format_size(size_bytes):
-    if size_bytes == 0: return "0B"
-    size_name = ("B", "KB", "MB", "GB", "TB")
-    import math
-    i = int(math.floor(math.log(size_bytes, 1024)))
-    p = math.pow(1024, i)
-    s = round(size_bytes / p, 2)
-    return f"{s} {size_name[i]}"
-
-@app.route('/api/tasks/<int:task_id>/logs')
-@login_required
-def task_logs(task_id):
-    task = DownloadTask.query.get(task_id)
-    if not task or task.user_id != current_user.id:
-        return jsonify({'error': 'Task not found or unauthorized'}), 404
-    
-    log_path = get_log_path(task_id)
-    if os.path.exists(log_path):
-        try:
-            with open(log_path, 'r') as f:
-                logs = f.read()
-            return jsonify({'logs': logs})
-        except Exception as e:
-            return jsonify({'error': f'Could not read log file: {str(e)}'}), 500
-    
-    return jsonify({'logs': task.error_log or 'No logs available yet.'})
-
-@app.route('/api/tasks/clear_failed', methods=['POST'])
-@login_required
-def clear_failed_tasks():
-    try:
-        # Clear tasks that are specifically in 'error' status
-        count = DownloadTask.query.filter(
-            DownloadTask.user_id == current_user.id,
-            DownloadTask.status == 'error'
-        ).delete()
-        db.session.commit()
-        return jsonify({'message': f'Cleared {count} incomplete or failed tasks'})
-    except Exception as e:
-        db.session.rollback()
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/tasks', methods=['GET'])
-@login_required
-def list_tasks():
-    tasks = DownloadTask.query.filter_by(user_id=current_user.id).order_by(DownloadTask.created_at.desc()).all()
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    
-    task_list = []
-    for t in tasks:
-        size = "Calculating..."
-        if t.filename:
-            path = os.path.join(downloads_dir, t.filename)
-            if os.path.exists(path):
-                size = format_size(os.path.getsize(path))
-        
-        task_list.append({
-            'id': t.id,
-            'filename': t.filename,
-            'status': t.status,
-            'progress': t.progress,
-            'type': t.task_type,
-            'video_id': t.video_id,
-            'size': size,
-            'error': t.error_log,
-            'encoder_type': t.encoder_type
-        })
-    return jsonify({'tasks': task_list})
-
-
-@app.route('/api/download', methods=['POST'])
-@login_required
-def download_video():
-    data = request.json
-    url = data.get('url')
-    video_id = data.get('id')
-    
-    if not url or not video_id:
-        return jsonify({'error': 'URL and ID are required'}), 400
-    
-    # Create task record
-    task = DownloadTask(user_id=current_user.id, video_id=video_id, status='pending', task_type='download')
-    db.session.add(task)
-    db.session.commit()
-    
-    start_download_async(url, video_id, task.id)
-    start_chat_download_async(video_id, task.id)
-    return jsonify({'message': 'Download started in background', 'taskId': task.id})
-
-@app.route('/api/compress', methods=['POST'])
-@login_required
-def compress_video():
-    data = request.json
-    filename = data.get('filename')
-    preset = data.get('preset', 'balanced')
-    codec = data.get('codec', 'H.264')
-    
-    if not filename:
-        return jsonify({'error': 'Filename is required'}), 400
-
-    # Check if a compressed version already exists with the same settings
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    output_filename = f"compressed_{codec}_{preset}_{filename}"
-    if os.path.exists(os.path.join(downloads_dir, output_filename)):
-        return jsonify({'error': 'A compressed version with these settings already exists', 'exists': True}), 409
-    
-    # Create task record
-    task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress')
-    db.session.add(task)
-    db.session.commit()
-    
-    start_compress_async(filename, preset, task.id, current_user.id, codec)
-    return jsonify({'message': 'Compression started in background', 'taskId': task.id})
-
-@app.route('/api/files', methods=['GET'])
-@login_required
-def list_files():
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    try:
-        files = os.listdir(downloads_dir)
-        # Filter out temp files and hidden files
-        filtered_files = [f for f in files if not (f.endswith('.temp.mp4') or f.endswith('.temp') or f.startswith('.'))]
-        
-        # Filter for the user's files or allow all if admin
-        user_files = [f for f in filtered_files if any(t.filename == f for t in DownloadTask.query.filter_by(user_id=current_user.id).all())]
-        if current_user.role == 'admin':
-            user_files = filtered_files
-        return jsonify({'files': user_files})
-    except Exception as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/library', methods=['GET'])
-@login_required
-def list_library():
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    try:
-        # The downloads folder is the absolute source of truth
-        all_files = os.listdir(downloads_dir)
-    except Exception as e:
-        return jsonify({'error': f'Could not access downloads directory: {str(e)}'}), 500
-    
-    # Filter out temp files and hidden files
-    actual_files = [f for f in all_files if not (f.endswith(('.temp.mp4', '.temp', '.part', '.ytdl')) or f.startswith('.'))]
-    
-    files_data = []
-    for filename in actual_files:
-        # Find the most recent task associated with this filename to determine ownership and metadata
-        task = DownloadTask.query.filter_by(filename=filename).order_by(DownloadTask.created_at.desc()).first()
-        
-        # Access Control: If no task record exists for this file in the downloads folder, 
-        # it's an unmanaged file. Only admin can see/manage unmanaged files.
-        if not task:
-            if current_user.role != 'admin':
-                continue
-        elif task.user_id != current_user.id and current_user.role != 'admin':
-            continue
-    
-        path = os.path.join(downloads_dir, filename)
-        try:
-            size = os.path.getsize(path)
-        except OSError:
-            continue
-    
-        original_size = "Unknown"
-        task_type = "unknown"
-        encoder_type = None
-        created_at = None
-    
-        if filename.startswith('compressed_'):
-            task_type = 'compress'
-            # Filename format: compressed_{codec}_{preset}_{original_filename}
-            # Split only 3 times to preserve underscores in the original filename
-            parts = filename.split('_', 3)
-            if len(parts) >= 4:
-                original_filename = parts[3]
-                orig_path = os.path.join(downloads_dir, original_filename)
-                if os.path.exists(orig_path):
-                    try:
-                        original_size = os.path.getsize(orig_path)
-                    except OSError:
-                        pass
-        else:
-            task_type = 'download'
-
-        if task:
-            encoder_type = task.encoder_type
-            created_at = task.created_at
-        else:
-            try:
-                created_at = datetime.fromtimestamp(os.path.getmtime(path))
-            except OSError:
-                created_at = None
-    
-        files_data.append({
-            'filename': filename,
-            'video_id': task.video_id if task else None,
-            'type': task_type,
-            'created_at': created_at,
-            'size': format_size(size) if isinstance(size, (int, float)) else size,
-            'size_bytes': size if isinstance(size, (int, float)) else 0,
-            'original_size': format_size(original_size) if isinstance(original_size, (int, float)) else None,
-            'original_size_bytes': original_size if isinstance(original_size, (int, float)) else 0,
-            'savings': calculate_savings(original_size, size),
-            'encoder_type': encoder_type
-        })
-    
-    return jsonify({'files': files_data})
-
-def calculate_savings(original, current):
-    if not isinstance(original, (int, float)) or not isinstance(current, (int, float)):
-        return None
-    if original <= 0: return None
-    saved = original - current
-    percent = (saved / original) * 100
-    return f"{format_size(saved)} ({round(percent, 1)}%)"
-
-@app.route('/api/library/bulk-delete', methods=['POST'])
-@login_required
-def bulk_delete_files():
-    data = request.json
-    filenames = data.get('filenames', [])
-    if not filenames:
-        return jsonify({'error': 'No files selected'}), 400
-    
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    deleted_count = 0
-    
-    for filename in filenames:
-        # Verify ownership
-        task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
-        if task or current_user.role == 'admin':
-            path = os.path.join(downloads_dir, filename)
-            try:
-                if os.path.exists(path):
-                    os.remove(path)
-                    # Also remove task record to clean up library
-                    if task:
-                        db.session.delete(task)
-                    
-                    # Cleanup thumbnail if it exists
-                    thumb_path = os.path.join(downloads_dir, '.thumbnails', f"{filename}.jpg")
-                    if os.path.exists(thumb_path):
-                        os.remove(thumb_path)
-                        
-                    deleted_count += 1
-            except Exception as e:
-                app.logger.error(f"Error deleting {filename}: {e}")
-    
-    db.session.commit()
-    return jsonify({'message': f'Successfully deleted {deleted_count} files'})
-
-@app.route('/api/library/bulk-compress', methods=['POST'])
-@login_required
-def bulk_compress_files():
-    data = request.json
-    filenames = data.get('filenames', [])
-    codec = data.get('codec', 'AV1')
-    preset = data.get('preset', 'balanced')
-    
-    if not filenames:
-        return jsonify({'error': 'No files selected'}), 400
-
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    task_ids = []
-    skipped_files = []
-    
-    for filename in filenames:
-        # Verify ownership
-        task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
-        if task or current_user.role == 'admin':
-            # Check for existing compressed version
-            output_filename = f"compressed_{codec}_{preset}_{filename}"
-            if os.path.exists(os.path.join(downloads_dir, output_filename)):
-                skipped_files.append(filename)
-                continue
-
-            # Create a new compression task
-            new_task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress')
-            db.session.add(new_task)
-            db.session.flush() # Get ID before commit
-            
-            start_compress_async(filename, preset, new_task.id, current_user.id, codec)
-            task_ids.append(new_task.id)
-    
-    db.session.commit()
-    
-    message = f'Started compression for {len(task_ids)} files'
-    if skipped_files:
-        message += f'. Skipped {len(skipped_files)} files that already had compressed copies.'
-        
-    return jsonify({'message': message, 'taskIds': task_ids, 'skipped': skipped_files})
-
-@app.route('/api/download/chat/<video_id>', methods=['POST'])
-@login_required
-def download_chat_route(video_id):
-    clean_id = video_id[1:] if video_id.startswith('v') else video_id
-    task = DownloadTask.query.filter_by(video_id=clean_id).first()
-    if not task:
-        return jsonify({'error': 'Video not found'}), 404
-    
-    start_chat_download_async(clean_id, task.id)
-    return jsonify({'message': 'Chat download started in background'})
-
-@app.route('/api/chat/<video_id>')
-@login_required
-def get_chat(video_id):
-    app.logger.info(f"Chat API requested for video_id: {video_id}")
-    # Strip leading 'v' if present to match numeric ID in database
-    clean_id = video_id[1:] if video_id.startswith('v') else video_id
-    app.logger.info(f"Cleaned ID: {clean_id}")
-    
-    # 1. Try to find by video_id
-    task = DownloadTask.query.filter_by(video_id=clean_id).first()
-    if task:
-        app.logger.info(f"Found task by video_id: {task.id}")
-    
-    # 2. Fallback: Try to find by filename if clean_id looks like a filename
-    if not task and ('.' in clean_id or len(clean_id) > 20):
-        safe_filename = os.path.basename(clean_id)
-        app.logger.info(f"Attempting filename lookup for: {safe_filename}")
-        task = DownloadTask.query.filter_by(filename=safe_filename).first()
-        if task:
-            app.logger.info(f"Found task by filename: {task.id}")
-        
-    if not task:
-        app.logger.warning(f"No task found in database for identifier: {video_id}")
-        return jsonify({'error': 'Video not found in database'}), 404
-    
-    # Check if chat messages exist. If not, attempt a synchronous download.
-    messages = ChatMessage.query.filter_by(task_id=task.id).order_by(ChatMessage.time_in_seconds).all()
-    
-    if not messages:
-        app.logger.info(f"No chat found for task {task.id}, attempting synchronous download...")
-        try:
-            # Use the clean_id (numeric ID) for the downloader
-            # If it was found by filename, we might not have the video_id. 
-            # Fallback to task.video_id if available.
-            vid_id = task.video_id if task.video_id else clean_id
-            chat_data = download_chat_sync(vid_id, task.id)
-            
-            return jsonify([{
-                'username': m['username'],
-                'message': m['message'],
-                'time': m['time']
-            } for m in chat_data])
-        except Exception as e:
-            app.logger.error(f"Synchronous chat download failed: {e}")
-            return jsonify({'error': 'Failed to download chat synchronously', 'details': str(e)}), 500
-
-    app.logger.info(f"Found {len(messages)} messages for task {task.id}")
-    
-    return jsonify([{
-        'username': m.username,
-        'message': m.message,
-        'time': m.time_in_seconds
-    } for m in messages])
-
-@app.route('/api/chat/export/<video_id>')
-@login_required
-def export_chat(video_id):
-    # Strip leading 'v' if present to match numeric ID in database
-    clean_id = video_id[1:] if video_id.startswith('v') else video_id
-    task = DownloadTask.query.filter_by(video_id=clean_id).first()
-    if not task:
-        return jsonify({'error': 'Video not found'}), 404
-    
-    messages = ChatMessage.query.filter_by(task_id=task.id).order_by(ChatMessage.time_in_seconds).all()
-    data = [{
-        'username': m.username,
-        'message': m.message,
-        'time_in_seconds': m.time_in_seconds,
-        'timestamp': m.timestamp.isoformat() if m.timestamp else None
-    } for m in messages]
-    
-    import json
-    from flask import Response
-    return Response(json.dumps(data, indent=2), mimetype='application/json', 
-                    headers={'Content-Disposition': f'attachment; filename=chat_{video_id}.json'})
-
-@app.route('/api/preview/<path:filename>')
-@login_required
-def preview_video(filename):
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    # Sanitize filename to prevent path traversal and handle full paths sent by frontend
-    safe_filename = os.path.basename(filename)
-    
-    # Verify user owns this file
-    task = DownloadTask.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
-    if not task and current_user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
-    
-    return send_from_directory(downloads_dir, safe_filename)
-
-@app.route('/downloads/<path:filename>')
-@login_required
-def download_file(filename):
-    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
-    # Verify user owns this file
-    task = DownloadTask.query.filter_by(filename=filename, user_id=current_user.id).first()
-    if not task and current_user.role != 'admin':
-        return "Unauthorized", 403
-    
-    return send_from_directory(downloads_dir, filename, as_attachment=True)
-
 if __name__ == '__main__':
     bootstrap_admin()
-    
-    # Setup background scheduler for auto-downloads
     scheduler = setup_scheduler()
-    
-    # Register signal handlers for SIGTERM (Docker stop) and SIGINT (Ctrl+C)
     signal.signal(signal.SIGTERM, handle_shutdown)
     signal.signal(signal.SIGINT, handle_shutdown)
     app.run(host='0.0.0.0', port=5000)
