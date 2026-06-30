@@ -153,10 +153,10 @@
         <div class="nav-group">
             <a class="nav-item {% if request.endpoint in ['admin_dashboard', 'admin_users', 'admin_activity', 'system_status'] %}active{% endif %}" onclick="toggleAdminMenu()" id="nav-admin"><span>🛠️</span> <span>Admin</span></a>
             <div class="nav-submenu {% if request.endpoint in ['admin_dashboard', 'admin_users', 'admin_activity', 'system_status'] %}active{% endif %}" id="adminSubmenu">
-                <a class="submenu-item {% if request.endpoint == 'admin_dashboard' %}active{% endif %}" href="{{ url_for('admin_dashboard') }}">📊 Command Center</a>
-                <a class="submenu-item {% if request.endpoint == 'admin_users' %}active{% endif %}" href="{{ url_for('admin_users') }}">👥 User Management</a>
-                <a class="submenu-item {% if request.endpoint == 'admin_activity' %}active{% endif %}" href="{{ url_for('admin_activity') }}">📈 Activity Monitor</a>
-                <a class="submenu-item {% if request.endpoint == 'system_status' %}active{% endif %}" href="{{ url_for('system_status') }}">⚙️ System Status</a>
+                <a class="submenu-item {% if request.endpoint == 'admin.admin_dashboard' %}active{% endif %}" href="{{ url_for('admin.admin_dashboard') }}">📊 Command Center</a>
+                <a class="submenu-item {% if request.endpoint == 'admin.admin_users' %}active{% endif %}" href="{{ url_for('admin.admin_users') }}">👥 User Management</a>
+                <a class="submenu-item {% if request.endpoint == 'admin.admin_activity' %}active{% endif %}" href="{{ url_for('admin.admin_activity') }}">📈 Activity Monitor</a>
+                <a class="submenu-item {% if request.endpoint == 'admin.system_status' %}active{% endif %}" href="{{ url_for('admin.system_status') }}">⚙️ System Status</a>
             </div>
         </div>
         {% endif %}
