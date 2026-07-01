@@ -4,6 +4,7 @@ import threading
 import re
 import traceback
 import signal
+import queue
 from dotenv import load_dotenv
 from models import db, DownloadTask
 
@@ -19,6 +20,48 @@ def get_log_path(task_id):
 # Global registry to track active processes for cancellation
 # Key: task_id, Value: subprocess.Popen object
 active_processes = {}
+
+# Compression Queue to prevent system freezes by limiting concurrency
+compression_queue = queue.Queue()
+compression_worker_started = False
+
+def compression_worker():
+    """Worker thread that processes compression tasks one by one."""
+    print("Compression worker started.")
+    while True:
+        try:
+            # Block until a task is available
+            task_data = compression_queue.get()
+            if task_data is None: # Sentinel for shutdown
+                break
+            
+            task_id, input_filename, preset, user_id, codec = task_data
+            
+            # Check if task was cancelled while waiting in queue
+            from main import app
+            with app.app_context():
+                task = DownloadTask.query.get(task_id)
+                if not task or task.status == 'error':
+                    print(f"[Worker] Skipping cancelled or failed task {task_id}")
+                    compression_queue.task_done()
+                    continue
+            
+            print(f"[Worker] Processing task {task_id}: {input_filename}")
+            compress_video(input_filename, preset, task_id, user_id, codec)
+            
+            compression_queue.task_done()
+        except Exception as e:
+            print(f"[Worker] Error processing compression task: {e}")
+            traceback.print_exc()
+
+def start_compression_worker():
+    """Initializes the single background worker thread for compression."""
+    global compression_worker_started
+    if not compression_worker_started:
+        worker = threading.Thread(target=compression_worker, daemon=True)
+        worker.start()
+        compression_worker_started = True
+        print("Compression worker thread launched.")
 
 def shutdown_all_tasks():
     """Kills all active subprocesses immediately on app shutdown."""
@@ -403,9 +446,11 @@ def start_download_async(url, video_id, task_id):
     return thread
 
 def start_compress_async(input_filename, preset, task_id, user_id, codec='H.264'):
-    thread = threading.Thread(target=compress_video, args=(input_filename, preset, task_id, user_id, codec))
-    thread.start()
-    return thread
+    """Adds a compression task to the global queue to be processed sequentially."""
+    start_compression_worker()
+    compression_queue.put((task_id, input_filename, preset, user_id, codec))
+    print(f"Task {task_id} added to compression queue.")
+    return None # No longer returns a thread object
 
 def cancel_task(task_id):
     """Kills the process associated with the task and all its children. 

@@ -18,7 +18,7 @@ except ImportError:
     psutil = None
 
 from models import db, User, Favorite, DownloadTask, MonitoredChannel, ChatMessage
-from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path
+from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path, start_compression_worker
 from chat_manager import start_chat_download_async, download_chat_sync
 from utils.system import cleanup_temp_files
 
@@ -81,6 +81,9 @@ def bootstrap_admin():
     with app.app_context():
         db.create_all()
         cleanup_temp_files()
+        
+        # Start the sequential compression worker
+        start_compression_worker()
         
         migrations = [
             "ALTER TABLE download_task ADD COLUMN error_log TEXT",
