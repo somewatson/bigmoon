@@ -91,9 +91,9 @@ def admin_activity_api():
         return jsonify({
             'stats': {
                 'total_users': total_users,
-                'active': total_active,
-                'pending': total_pending,
-                'failed': total_failed
+                'active_tasks': total_active,
+                'pending_tasks': total_pending,
+                'failed_tasks': total_failed
             },
             'tasks': tasks_list,
             'user_summaries': user_summaries
