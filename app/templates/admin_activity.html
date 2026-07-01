@@ -120,9 +120,11 @@
                 <th>Video / File</th>
                 <th>Status</th>
                 <th>Progress</th>
-                <th>Created At</th>
-            </tr>
-        </thead>
+                                <th>Created At</th>
+                                <th style="text-align: center;">Logs</th>
+                            </tr>
+                        </thead>
+
         <tbody id="activityTableBody">
             <tr>
                 <td colspan="5" style="text-align: center; color: var(--text-dim); padding: 40px;">Loading activity...</td>
@@ -196,8 +198,12 @@
                                 <div class="progress-mini"><div class="progress-mini-fill" style="width: ${progress}%"></div></div>
                                 <span style="font-size: 0.8rem; color: var(--text-dim);">${progress}%</span>
                             </td>
-                            <td style="color: var(--text-dim); font-size: 0.8rem;">${task.created_at ? new Date(task.created_at).toLocaleString() : 'N/A'}</td>
-                        </tr>
+                                <td style="color: var(--text-dim); font-size: 0.8rem;">${task.created_at ? new Date(task.created_at).toLocaleString() : 'N/A'}</td>
+                                <td style="text-align: center;">
+                                    <button onclick="viewTaskLogs(${task.id})" style="background: #444; color: white; font-size: 0.7rem; padding: 4px 8px; border-radius: 4px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="View detailed processing logs">View Logs</button>
+                                </td>
+                            </tr>
+
             `;
         }).join('');
     }
