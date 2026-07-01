@@ -19,7 +19,7 @@ def retry_task(task_id):
 
     if task.task_type == 'download':
         if not task.url:
-            return jsonify({'error': 'Original URL not stored for this task. Please re-add the VOD.'}), 400
+            return jsonify({'error': 'This is a legacy task and its original URL was not stored. Please re-add the VOD to the queue.'}), 400
         
         from app.downloader import start_download_async
         start_download_async(task.url, task.video_id, task.id)
