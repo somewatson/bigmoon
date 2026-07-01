@@ -4,7 +4,10 @@ async function loadFiles() {
         const data = await response.json();
         const list = document.getElementById('fileList');
         list.innerHTML = '';
-        data.files.filter(file => !file.startsWith('compressed_')).forEach(fileData => {
+        data.files.filter(fileData => {
+            const filename = typeof fileData === 'string' ? fileData : fileData.filename;
+            return !filename.startsWith('compressed_');
+        }).forEach(fileData => {
             const file = typeof fileData === 'string' ? fileData : fileData.filename;
             const size = fileData.size || 'Unknown';
             const created = fileData.created_at ? new Date(fileData.created_at).toLocaleString() : 'Unknown Date';
