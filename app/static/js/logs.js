@@ -2,6 +2,12 @@ async function viewTaskLogs(taskId) {
     const modal = document.getElementById('logModal');
     const container = document.getElementById('logContainer');
     const badgeEl = document.getElementById('logEncoderBadge');
+
+    if (!modal || !container || !badgeEl) {
+        console.error('Log modal elements not found in DOM');
+        return;
+    }
+
     modal.classList.add('active');
     container.innerHTML = 'Loading logs...';
     badgeEl.innerHTML = '';
