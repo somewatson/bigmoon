@@ -244,10 +244,23 @@ def preview_video(filename):
     decoded_filename = unquote(filename)
     safe_filename = os.path.basename(decoded_filename)
     
-    task = DownloadTask.query.filter_by(filename=safe_filename, user_id=current_user.id).first()
-    if not task and current_user.role != 'admin':
+    # Check if this is a numeric video_id instead of a filename
+    is_video_id = safe_filename.isdigit()
+    
+    task = DownloadTask.query.filter_by(filename=safe_filename).first()
+    if not task and not is_video_id:
+        # If it's not a known filename and not a video_id, we can't serve it
+        return jsonify({'error': 'Video file not found'}), 404
+
+    if task and task.user_id != current_user.id and current_user.role != 'admin':
         return jsonify({'error': 'Unauthorized'}), 403
     
+    # If it's a video_id or the file doesn't exist on disk, we can't serve local preview
+    video_path = os.path.join(downloads_dir, safe_filename)
+    if is_video_id or not os.path.exists(video_path):
+        # Instead of 404, return a hint that this should be viewed via Twitch player
+        return jsonify({'error': 'Local file not available', 'use_twitch_player': True}), 404
+
     return send_from_directory(downloads_dir, safe_filename)
 
 @library_bp.route('/downloads/<path:filename>')
