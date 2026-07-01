@@ -36,14 +36,18 @@ async function searchVideos() {
             card.className = 'video-card';
             
             const thumbUrl = video.thumbnail_url
-                .replace('%{width}', '1280')
-                .replace('%{height}', '720');
+                ? video.thumbnail_url.replace('%{width}', '1280').replace('%{height}', '720')
+                : 'https://api.dicebear.com/7.x/initials/svg?seed=VOD';
         
             const durationStr = video.duration || "Unknown";
+            const isRecent = (Date.now() - new Date(video.created_at).getTime()) < 3600000; // Last 1 hour
         
             card.innerHTML = `
-                <img src="${thumbUrl}" alt="thumbnail">
-                <div class="duration-badge">${durationStr}</div>
+                <div style="position: relative;">
+                    <img src="${thumbUrl}" alt="thumbnail" onerror="this.src='https://api.dicebear.com/7.x/initials/svg?seed=VOD'; this.classList.add('thumb-error');">
+                    ${isRecent ? `<span style="position: absolute; top: 10px; left: 10px; background: var(--error); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; animation: pulse 1.5s infinite;">Processing</span>` : ''}
+                    <div class="duration-badge">${durationStr}</div>
+                </div>
                 <div class="video-card-body">
                     <h3>${video.title}</h3>
                     <p>Created: ${new Date(video.created_at).toLocaleDateString()} | Duration: ${durationStr}</p>
