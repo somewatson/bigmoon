@@ -52,7 +52,7 @@ def compression_worker(device_path):
             from main import app
             with app.app_context():
                 task = DownloadTask.query.get(task_id)
-                if not task or task.status == 'error':
+                if not task or (task.status == 'error' and task.id != task_id):
                     print(f"[Worker {device_path}] Skipping cancelled or failed task {task_id}")
                     compression_queue.task_done()
                     continue
