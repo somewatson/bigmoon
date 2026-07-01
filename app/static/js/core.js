@@ -17,13 +17,18 @@ async function apiFetch(url, options = {}) {
         
         if (!response.ok) {
             // Try to extract error message from JSON response
+            let errorMessage = `HTTP error! status: ${response.status}`;
             try {
-                const errorData = await response.json();
-                const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
-                throw new Error(errorMessage);
+                const responseText = await response.text();
+                console.log('Raw error response:', responseText);
+                if (responseText) {
+                    const errorData = JSON.parse(responseText);
+                    errorMessage = errorData.error || errorMessage;
+                }
             } catch (jsonError) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                console.error('Failed to parse error JSON:', jsonError);
             }
+            throw new Error(errorMessage);
         }
         
         apiRetryCount = 0;
