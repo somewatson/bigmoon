@@ -88,7 +88,9 @@ def bootstrap_admin():
             "ALTER TABLE download_task ADD COLUMN encoder_type TEXT",
             "ALTER TABLE download_task ADD COLUMN chat_status TEXT",
             "ALTER TABLE download_task ADD COLUMN last_byte_offset INTEGER",
-            "ALTER TABLE download_task ADD COLUMN url TEXT"
+            "ALTER TABLE download_task ADD COLUMN url TEXT",
+            "ALTER TABLE download_task ADD COLUMN preset TEXT",
+            "ALTER TABLE download_task ADD COLUMN codec TEXT"
         ]
         for sql in migrations:
             try:
@@ -145,9 +147,12 @@ def recover_interrupted_tasks():
                     else:
                         task.status = 'error'
                         task.error_log = "Recovery failed: original URL not found in database."
-                elif task.task_type == 'compress':
-                    start_compress_async(task.filename, 'balanced', task.id, task.user_id, 'H.264')
-                    recovered_count += 1
+                 elif task.task_type == 'compress':
+                     preset = task.preset or 'balanced'
+                     codec = task.codec or 'H.264'
+                     start_compress_async(task.filename, preset, task.id, task.user_id, codec)
+                     recovered_count += 1
+
                 db.session.commit()
             else:
                 task.status = 'error'

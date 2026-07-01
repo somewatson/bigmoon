@@ -29,13 +29,15 @@ def retry_task(task_id):
         return jsonify({'message': 'Download retry started'})
     
     elif task.task_type == 'compress':
-
         if not task.filename:
             return jsonify({'error': 'Input file missing, cannot retry compression'}), 400
         
-        start_compress_async(task.filename, 'balanced', task.id, current_user.id, 'H.264')
+        preset = task.preset or 'balanced'
+        codec = task.codec or 'H.264'
+        start_compress_async(task.filename, preset, task.id, current_user.id, codec)
         update_task_progress(task.id, 'pending', progress=0.0)
         return jsonify({'message': 'Compression retry started'})
+
     
     return jsonify({'error': 'Unknown task type'}), 400
 
@@ -149,7 +151,7 @@ def compress_video():
     if os.path.exists(os.path.join(downloads_dir, output_filename)):
         return jsonify({'error': 'A compressed version with these settings already exists', 'exists': True}), 409
     
-    task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress')
+    task = DownloadTask(user_id=current_user.id, filename=filename, status='pending', task_type='compress', preset=preset, codec=codec)
     db.session.add(task)
     db.session.commit()
     

@@ -33,6 +33,8 @@ class DownloadTask(db.Model):
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
     error_log = db.Column(db.Text)
     encoder_type = db.Column(db.String(10))
+    preset = db.Column(db.String(20))
+    codec = db.Column(db.String(20))
     last_byte_offset = db.Column(db.BigInteger, default=0)
     chat_json_path = db.Column(db.String(255))
     chat_status = db.Column(db.String(20), default='pending')
