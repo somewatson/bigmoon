@@ -16,7 +16,14 @@ async function apiFetch(url, options = {}) {
         clearTimeout(timeoutId);
         
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            // Try to extract error message from JSON response
+            try {
+                const errorData = await response.json();
+                const errorMessage = errorData.error || `HTTP error! status: ${response.status}`;
+                throw new Error(errorMessage);
+            } catch (jsonError) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
         }
         
         apiRetryCount = 0;
