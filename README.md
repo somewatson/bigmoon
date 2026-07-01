@@ -7,6 +7,7 @@ Big Moon is a self-hosted Twitch VOD downloader with a web interface, user authe
 - **VOD Discovery**: Search for any Twitch channel and browse their available VODs with built-in player previews.
 - **Hardware Accelerated**: Uses Intel VA-API via `/dev/dri` to speed up video processing.
 - **AV1 Support**: Integrated with official Intel GPU drivers for AV1 hardware encoding (requires Intel Arc or 14th Gen+ CPUs).
+- **Parallel Hardware Processing**: Automatically detects all available VA-API devices (e.g., iGPU + dGPU) and distributes compression tasks across them in parallel to maximize throughput.
 - **Auto-Download Pipeline**: 
     - **Smart Monitoring**: Automatically detect and download new VODs from monitored channels.
     - **Task Chaining**: Fully automated `Download` $\rightarrow$ `Compress` pipeline based on customizable presets.
@@ -19,7 +20,7 @@ Big Moon is a self-hosted Twitch VOD downloader with a web interface, user authe
   - **Glassmorphism**: A polished, semi-transparent interface with dynamic accents.
   - **Collapsible Navigation**: Adaptive sidebar for maximum workspace.
   - **Live Feedback**: Visual progress bars with pulsing animations and toast notifications, including real-time task progress in log views.
-  - **Resilient Processing**: Automatic reconnection for network-streamed VODs to prevent task failure.
+  - **Resilient Processing**: Automatic reconnection for network-streamed VODs and robust task recovery/retry systems that preserve original compression settings.
   - **Rich Channel Info**: Integrated channel descriptions and robust avatar loading for discovery and favorites.
 - **User Management**: 
   - **Admin Command Center**: High-level dashboard with disk utilization gauges and hardware health monitoring.
