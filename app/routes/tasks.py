@@ -23,7 +23,7 @@ def retry_task(task_id):
             update_task_progress(task.id, error_log=error_msg)
             return jsonify({'error': error_msg}), 400
         
-        from app.downloader import start_download_async
+        # Removed redundant import from app.downloader
         start_download_async(task.url, task.video_id, task.id)
         update_task_progress(task.id, 'pending', progress=0.0)
         return jsonify({'message': 'Download retry started'})
