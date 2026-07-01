@@ -52,7 +52,7 @@ async function loadTasks() {
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span style="color: var(--error); font-size: 1.2rem;">❌</span>
                         <span style="color: var(--error); font-size: 0.8rem;">Failed</span>
-                        ${task.type === 'compress' ? `<button onclick="retryTask(${task.id})" style="background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.7rem; padding: 2px 6px;">Retry</button>` : ''}
+                        <button onclick="retryTask(${task.id})" style="background: var(--primary); color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.7rem; padding: 2px 6px;">Retry</button>
                     </div>
                 `;
             } else {
