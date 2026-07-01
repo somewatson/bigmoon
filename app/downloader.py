@@ -23,11 +23,22 @@ active_processes = {}
 
 # Compression Queue to prevent system freezes by limiting concurrency
 compression_queue = queue.Queue()
-compression_worker_started = False
+compression_workers = []
 
-def compression_worker():
-    """Worker thread that processes compression tasks one by one."""
-    print("Compression worker started.")
+def get_vaapi_devices():
+    """Detects all available VA-API render nodes in /dev/dri/."""
+    try:
+        import glob
+        devices = glob.glob('/dev/dri/renderD*')
+        devices.sort()
+        return devices
+    except Exception as e:
+        print(f"Error detecting VA-API devices: {e}")
+        return ['/dev/dri/renderD128'] # Fallback to default
+
+def compression_worker(device_path):
+    """Worker thread that processes compression tasks using a specific VA-API device."""
+    print(f"Compression worker started for device: {device_path}")
     while True:
         try:
             # Block until a task is available
@@ -42,26 +53,30 @@ def compression_worker():
             with app.app_context():
                 task = DownloadTask.query.get(task_id)
                 if not task or task.status == 'error':
-                    print(f"[Worker] Skipping cancelled or failed task {task_id}")
+                    print(f"[Worker {device_path}] Skipping cancelled or failed task {task_id}")
                     compression_queue.task_done()
                     continue
             
-            print(f"[Worker] Processing task {task_id}: {input_filename}")
-            compress_video(input_filename, preset, task_id, user_id, codec)
+            print(f"[Worker {device_path}] Processing task {task_id}: {input_filename}")
+            compress_video(input_filename, preset, task_id, user_id, codec, device_path)
             
             compression_queue.task_done()
         except Exception as e:
-            print(f"[Worker] Error processing compression task: {e}")
+            print(f"[Worker {device_path}] Error processing compression task: {e}")
             traceback.print_exc()
 
 def start_compression_worker():
-    """Initializes the single background worker thread for compression."""
-    global compression_worker_started
-    if not compression_worker_started:
-        worker = threading.Thread(target=compression_worker, daemon=True)
+    """Initializes background worker threads, one per detected VA-API device."""
+    global compression_workers
+    devices = get_vaapi_devices()
+    print(f"Detected {len(devices)} VA-API devices: {devices}")
+    
+    for device in devices:
+        worker = threading.Thread(target=compression_worker, args=(device,), daemon=True)
         worker.start()
-        compression_worker_started = True
-        print("Compression worker thread launched.")
+        compression_workers.append(worker)
+    
+    print(f"Launched {len(devices)} compression worker threads.")
 
 def shutdown_all_tasks():
     """Kills all active subprocesses immediately on app shutdown."""
@@ -273,7 +288,7 @@ def download_vod(url, video_id, task_id):
         active_processes.pop(task_id, None)
 
 
-def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
+def compress_video(input_filename, preset, task_id, user_id, codec='H.264', device_path='/dev/dri/renderD128'):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
     input_path = os.path.join(DOWNLOADS_DIR, input_filename)
     # Use os.path.basename to ensure we only have the filename, not the full path
@@ -355,7 +370,7 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264'):
         cmd = [
             'ffmpeg',
             '-y',
-            '-vaapi_device', '/dev/dri/renderD128',
+            '-vaapi_device', device_path,
             '-i', input_path,
         ]
         if is_hw:
