@@ -82,6 +82,7 @@ def list_files():
             files_data.append({
                 'filename': filename,
                 'size': size,
+                'size_bytes': size_bytes if 'size_bytes' in locals() else 0,
                 'created_at': created_at,
                 'video_id': video_id
             })
