@@ -57,7 +57,36 @@ def list_files():
         user_files = [f for f in filtered_files if any(t.filename == f for t in DownloadTask.query.filter_by(user_id=current_user.id).all())]
         if current_user.role == 'admin':
             user_files = filtered_files
-        return jsonify({'files': user_files})
+            
+        files_data = []
+        for filename in user_files:
+            task = DownloadTask.query.filter_by(filename=filename).first()
+            
+            path = os.path.join(downloads_dir, filename)
+            try:
+                size_bytes = os.path.getsize(path)
+                size = format_size(size_bytes)
+            except OSError:
+                size = 'Unknown'
+            
+            if task:
+                created_at = task.created_at
+                video_id = task.video_id
+            else:
+                try:
+                    created_at = __import__('datetime').datetime.fromtimestamp(os.path.getmtime(path))
+                except OSError:
+                    created_at = None
+                video_id = None
+                
+            files_data.append({
+                'filename': filename,
+                'size': size,
+                'created_at': created_at,
+                'video_id': video_id
+            })
+            
+        return jsonify({'files': files_data})
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
