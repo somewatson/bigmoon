@@ -58,6 +58,43 @@
         <div id="connection-status" class="status-online">Connected</div>
         <div id="toast-container"></div>
         
+        <!-- Log Modal (Redundant if in layout, but ensures existence in index) -->
+        <div id="logModal" class="modal" onclick="closeLogs()">
+            <div class="modal-content" onclick="event.stopPropagation()">
+                <button class="modal-close" onclick="closeLogs()">✕</button>
+                <div class="log-header">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <h3 style="margin: 0;" id="logTitle">Task Logs</h3>
+                        <span id="logEncoderBadge"></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div class="metrics-container" id="metrics-container" style="display: flex;">
+                            <div class="metric-box">
+                                <span>CPU: <span id="cpuVal">0</span>%</span>
+                                <div class="metric-bar-bg"><div id="cpuBar" class="metric-bar-fill"></div></div>
+                            </div>
+                            <div class="metric-box">
+                                <span>MEM: <span id="memVal">0</span>%</span>
+                                <div class="metric-bar-bg"><div id="memBar" class="metric-bar-fill"></div></div>
+                            </div>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 15px;">
+                            <div class="progress-container" style="width: 150px; margin-top: 0;">
+                                <div id="logProgressBar" class="progress-bar" style="width: 0%;"></div>
+                                <span id="logProgressText" class="progress-text">0%</span>
+                            </div>
+                            <div style="display: flex; gap: 10px;">
+                                <button onclick="copyLogsToClipboard()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Copy Logs</button>
+                                <button onclick="refreshLogs()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Refresh</button>
+                                <button onclick="scrollToBottom()" style="font-size: 0.7rem; padding: 4px 8px; background: #444; color: white; border: none; border-radius: 4px; cursor: pointer;">Scroll to Bottom</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div id="logContainer" class="log-container"></div>
+            </div>
+        </div>
+
         <!-- Preview Modal -->
         <div id="previewModal" class="modal" onclick="closePreview()">
             <div class="modal-content" onclick="event.stopPropagation()">
