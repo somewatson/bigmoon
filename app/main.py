@@ -138,20 +138,22 @@ def recover_interrupted_tasks():
             if resumable:
                 task.status = 'pending'
                 db.session.commit()
-                 if task.task_type == 'download':
-                     if task.url:
-                         # Truly resume the download
-                         from app.downloader import start_download_async
-                         start_download_async(task.url, task.video_id, task.id)
-                         recovered_count += 1
-                     else:
-                         task.status = 'error'
-                         task.error_log = "Recovery failed: original URL not found in database."
-                 elif task.task_type == 'compress':
-                     preset = task.preset or 'balanced'
-                     codec = task.codec or 'H.264'
-                     start_compress_async(task.filename, preset, task.id, task.user_id, codec)
-                     recovered_count += 1
+                if task.task_type == 'download':
+                    if task.url:
+                        # Truly resume the download
+                        from app.downloader import start_download_async
+                        start_download_async(task.url, task.video_id, task.id)
+                        recovered_count += 1
+                    else:
+                        task.status = 'error'
+                        task.error_log = "Recovery failed: original URL not found in database."
+                elif task.task_type == 'compress':
+                    preset = task.preset or 'balanced'
+                    codec = task.codec or 'H.264'
+                    start_compress_async(task.filename, preset, task.id, task.user_id, codec)
+                    recovered_count += 1
+                db.session.commit()
+
 
 
                 db.session.commit()
