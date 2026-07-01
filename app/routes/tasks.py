@@ -18,9 +18,16 @@ def retry_task(task_id):
         return jsonify({'error': 'Only failed or cancelled tasks can be retried'}), 400
 
     if task.task_type == 'download':
-        return jsonify({'error': 'Direct download retry not supported via API yet. Please re-add the URL.'}), 400
+        if not task.url:
+            return jsonify({'error': 'Original URL not stored for this task. Please re-add the VOD.'}), 400
+        
+        from app.downloader import start_download_async
+        start_download_async(task.url, task.video_id, task.id)
+        update_task_progress(task.id, 'pending', progress=0.0)
+        return jsonify({'message': 'Download retry started'})
     
     elif task.task_type == 'compress':
+
         if not task.filename:
             return jsonify({'error': 'Input file missing, cannot retry compression'}), 400
         
@@ -115,7 +122,7 @@ def download_video():
     if not url or not video_id:
         return jsonify({'error': 'URL and ID are required'}), 400
     
-    task = DownloadTask(user_id=current_user.id, video_id=video_id, status='pending', task_type='download')
+    task = DownloadTask(user_id=current_user.id, url=url, video_id=video_id, status='pending', task_type='download')
     db.session.add(task)
     db.session.commit()
     
