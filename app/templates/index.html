@@ -173,11 +173,12 @@
                          <div style="display: flex; align-items: center; gap: 20px;">
                              <h2>My Library</h2>
                              <input type="text" id="librarySearch" placeholder="Filter library..." style="max-width: 300px; padding: 6px 12px; font-size: 0.9rem;" oninput="loadLibrary()">
-                             <select id="librarySort" style="padding: 6px; font-size: 0.9rem;" onchange="loadLibrary()">
-                                 <option value="name">Sort by Name</option>
-                                 <option value="date">Sort by Date</option>
-                                 <option value="size">Sort by Size</option>
-                             </select>
+                                  <select id="librarySort" style="padding: 6px; font-size: 0.9rem;" onchange="loadLibrary()">
+                                      <option value="date" selected>Sort by Date</option>
+                                      <option value="name">Sort by Name</option>
+                                      <option value="size">Sort by Size</option>
+                                  </select>
+
                          </div>
 
                         <div id="bulkActions" class="bulk-actions">

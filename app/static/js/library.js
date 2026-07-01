@@ -39,6 +39,7 @@ function toggleLibraryLoading(isLoading) {
 async function loadLibrary() {
     const listOriginals = document.getElementById('libraryListOriginals');
     const listCompressed = document.getElementById('libraryListCompressed');
+    const sortBy = document.getElementById('librarySort').value;
 
     const requestId = ++window.loadLibraryRequestId;
     toggleLibraryLoading(true);
@@ -48,9 +49,6 @@ async function loadLibrary() {
         const data = await response.json();
         
         if (requestId !== window.loadLibraryRequestId) return;
-        
-        const fragOriginals = document.createDocumentFragment();
-        const fragCompressed = document.createDocumentFragment();
         
         if(data.files.length === 0) {
             toggleLibraryLoading(false);
@@ -65,6 +63,30 @@ async function loadLibrary() {
             return;
         }
 
+        // Implement Sorting
+        data.files.sort((a, b) => {
+            if (sortBy === 'date') {
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            } else if (sortBy === 'name') {
+                return a.filename.localeCompare(b.filename);
+            } else if (sortBy === 'size') {
+                const parseSize = (s) => {
+                    if (!s || typeof s !== 'string') return 0;
+                    const units = { 'B': 1, 'KiB': 1024, 'MiB': 1024**2, 'GiB': 1024**3, 'TiB': 1024**4 };
+                    const match = s.match(/^(\d+\.?\d*)\s*([KMGT]iB)?$/);
+                    if (!match) return 0;
+                    const val = parseFloat(match[1]);
+                    const unit = match[2] || 'B';
+                    return val * (units[unit] || 1);
+                };
+                return parseSize(b.size) - parseSize(a.size);
+            }
+            return 0;
+        });
+
+        const fragOriginals = document.createDocumentFragment();
+        const fragCompressed = document.createDocumentFragment();
+        
         const fileDataWithStatus = await Promise.all(data.files.map(async (file) => {
             const isIncomplete = await checkThumbnailStatus(file.filename);
             return { ...file, isIncomplete };
