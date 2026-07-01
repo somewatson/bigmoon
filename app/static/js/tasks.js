@@ -133,7 +133,7 @@ async function retryTask(taskId) {
             showToast('Error: ' + data.error, 'error');
         }
     } catch (e) {
-        showToast('An error occurred while retrying the task.', 'error');
+        showToast(`Error: ${e.message}`, 'error');
     }
 }
 
