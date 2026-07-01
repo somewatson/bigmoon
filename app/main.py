@@ -87,7 +87,8 @@ def bootstrap_admin():
             "ALTER TABLE download_task ADD COLUMN chat_json_path TEXT",
             "ALTER TABLE download_task ADD COLUMN encoder_type TEXT",
             "ALTER TABLE download_task ADD COLUMN chat_status TEXT",
-            "ALTER TABLE download_task ADD COLUMN last_byte_offset INTEGER"
+            "ALTER TABLE download_task ADD COLUMN last_byte_offset INTEGER",
+            "ALTER TABLE download_task ADD COLUMN url TEXT"
         ]
         for sql in migrations:
             try:
@@ -136,8 +137,14 @@ def recover_interrupted_tasks():
                 task.status = 'pending'
                 db.session.commit()
                 if task.task_type == 'download':
-                    task.status = 'error'
-                    task.error_log = "Recovery failed: original URL not found in database."
+                    if task.url:
+                        # Truly resume the download
+                        from app.downloader import start_download_async
+                        start_download_async(task.url, task.video_id, task.id)
+                        recovered_count += 1
+                    else:
+                        task.status = 'error'
+                        task.error_log = "Recovery failed: original URL not found in database."
                 elif task.task_type == 'compress':
                     start_compress_async(task.filename, 'balanced', task.id, task.user_id, 'H.264')
                     recovered_count += 1
