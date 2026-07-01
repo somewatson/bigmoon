@@ -72,8 +72,14 @@ async function loadLibrary() {
             } else if (sortBy === 'size') {
                 const parseSize = (s) => {
                     if (!s || typeof s !== 'string') return 0;
-                    const units = { 'B': 1, 'KiB': 1024, 'MiB': 1024**2, 'GiB': 1024**3, 'TiB': 1024**4 };
-                    const match = s.match(/^(\d+\.?\d*)\s*([KMGT]iB)?$/);
+                    const units = { 
+                        'B': 1, 
+                        'K': 1024, 'KB': 1024, 'KIB': 1024, 
+                        'M': 1024**2, 'MB': 1024**2, 'MIB': 1024**2, 
+                        'G': 1024**3, 'GB': 1024**3, 'GIB': 1024**3, 
+                        'T': 1024**4, 'TB': 1024**4, 'TIB': 1024**4 
+                    };
+                    const match = s.trim().toUpperCase().match(/^(\d+\.?\d*)\s*([KMGT]?(?:IB|B)?)$/);
                     if (!match) return 0;
                     const val = parseFloat(match[1]);
                     const unit = match[2] || 'B';
