@@ -37,15 +37,16 @@ async function searchVideos() {
             
             const thumbUrl = video.thumbnail_url
                 ? video.thumbnail_url.replace('%{width}', '1280').replace('%{height}', '720')
-                : 'https://api.dicebear.com/7.x/initials/svg?seed=VOD';
+                : '';
         
             const durationStr = video.duration || "Unknown";
             const isRecent = (Date.now() - new Date(video.created_at).getTime()) < 3600000; // Last 1 hour
         
             card.innerHTML = `
-                <div style="position: relative;">
-                    <img src="${thumbUrl}" alt="thumbnail" onerror="this.src='https://api.dicebear.com/7.x/initials/svg?seed=VOD'; this.classList.add('thumb-error');">
-                    ${isRecent ? `<span style="position: absolute; top: 10px; left: 10px; background: var(--error); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; animation: pulse 1.5s infinite;">Processing</span>` : ''}
+                <div style="position: relative; width: 100%; height: 160px; overflow: hidden; background: #1a1a1a;">
+                    <img src="${thumbUrl}" alt="thumbnail" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';">
+                    <div class="thumb-fallback" style="display: none; width: 100%; height: 100%; align-items: center; justify-content: center; color: var(--primary); font-weight: bold; font-size: 1.2rem; text-transform: uppercase; animation: glow 2s infinite alternate;">LIVE</div>
+                    ${isRecent ? `<span style="position: absolute; top: 10px; left: 10px; background: var(--error); color: white; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; animation: pulse 1.5s infinite; z-index: 10;">Processing</span>` : ''}
                     <div class="duration-badge">${durationStr}</div>
                 </div>
                 <div class="video-card-body">
