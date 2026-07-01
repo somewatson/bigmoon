@@ -2,26 +2,18 @@
 
 ## 🛠️ High Priority
 
+### 9. Admin Activity Monitor - View Logs Integration
+**Goal**: Enable administrators to view real-time task logs directly from the Activity Monitor page.
+- [ ] **Globalize Log Modal**: Move `logModal` HTML from `index.html` to `layout.html` to make it accessible across all application pages.
+- [ ] **Shared Log Logic**: Extract log-related JavaScript functions (`openLogs`, `refreshLogs`, `scrollToBottom`, `copyLogsToClipboard`) from `tasks.js` and move them to a shared script (e.g., `static/js/logs.js`) and include it in `layout.html`.
+- [ ] **UI Update**: Add a "View Logs" button to the task rows in `app/templates/admin_activity.html`.
+- [ ] **Verification**:
+    - [ ] Open Activity Monitor as Admin.
+    - [ ] Click "View Logs" for an active/failed task.
+    - [ ] Verify logs load correctly and the modal functions (refresh, copy, etc.) work as expected.
+
 ### 8. Task Pause & Resume System
 **Goal**: Allow downloads and compression tasks to persist across Docker container restarts and deployments without restarting from 0%.
-- [ ] **Persistence Layer**:
-    - [ ] Add `last_byte_offset` to `DownloadTask` model in `models.py`.
-    - [ ] Implement periodic offset saving in `downloader.py` during active downloads.
-- [ ] **Graceful Shutdown (Pause)**:
-    - [ ] Update `handle_shutdown` and `shutdown_all_tasks` to transition statuses to `paused` instead of `error`.
-    - [ ] Ensure current progress is flushed to DB before exit.
-- [ ] **Recovery Manager (Resume)**:
-    - [ ] Replace "Startup Cleanup" in `bootstrap_admin` with a recovery scan for `paused` or hanging tasks.
-    - [ ] Implement Range-request based resuming for downloads using `last_byte_offset`.
-    - [ ] Implement partial-file check and batch-skip logic for compression recovery.
-    - [ ] Automatically re-trigger async tasks for recovered items.
 - [ ] **Verification**:
     - [ ] Simulate container restart during large download and verify resume from offset.
 
-### 7. Admin Activity Monitor (Fixes)
-**Goal**: Fix data gaps in the Activity Monitor dashboard.
-- [ ] **API Fixes**:
-    - [ ] Add `total_users` to `/api/admin/activity` stats.
-    - [ ] Implement `user_summaries` aggregation (total, completed, failed tasks per user).
-- [ ] **Verification**:
-    - [ ] Verify "Total Users" and "User Activity Summaries" are populated in the UI.
