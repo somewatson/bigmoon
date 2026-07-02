@@ -124,29 +124,8 @@ function renderChatMessages(data, chatIdentifier) {
         videoPlayer.ontimeupdate = () => syncChat(videoPlayer.currentTime);
     }
 }
-    const chatContainer = document.getElementById('chatContainer');
-    const chatMessages = document.getElementById('chatMessages');
-    const downloadChatBtn = document.getElementById('downloadChatBtn');
 
-    chatContainer.style.display = 'block';
-    chatMessages.innerHTML = '';
-    chatMessages.innerHTML = data.map((m, idx) => `
-        <div class="chat-message" data-time="${m.time}" id="msg-${idx}" style="margin-bottom: 4px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onclick="seekToChatTime(${m.time})">
-            <span style="color: var(--primary); font-weight: bold;">${m.username}:</span>
-            <span>${m.message}</span>
-            <span style="color: var(--text-dim); font-size: 0.7rem; float: right;">${formatTime(m.time)}</span>
-        </div>
-    `).join('');
-    
-    downloadChatBtn.onclick = () => {
-        window.open(`/api/chat/export/${chatIdentifier}`, '_blank');
-    };
-
-    const videoPlayer = document.getElementById('videoPlayer');
-    if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
-        videoPlayer.ontimeupdate = () => syncChat(videoPlayer.currentTime);
-    }
-}
+function formatTime(seconds) {
 
 
 function formatTime(seconds) {
@@ -204,6 +183,7 @@ window.addEventListener('keydown', (e) => {
 });
 
 window.searchVideos = searchVideos;
+window.quickSearch = quickSearch;
 window.toggleFavorite = toggleFavorite;
 window.downloadVideo = downloadVideo;
 window.closePreview = closePreview;
