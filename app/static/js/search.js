@@ -100,105 +100,30 @@ async function downloadVideo(url, id) {
     }
 }
 
-async function previewVideo(identifier, type) {
-    const hostname = window.location.hostname;
-    const wrapper = document.getElementById('videoPlayerWrapper');
+function renderChatMessages(data, chatIdentifier) {
     const chatContainer = document.getElementById('chatContainer');
     const chatMessages = document.getElementById('chatMessages');
     const downloadChatBtn = document.getElementById('downloadChatBtn');
 
-    let videoPlayer = document.getElementById('videoPlayer');
+    chatContainer.style.display = 'block';
+    chatMessages.innerHTML = '';
+    chatMessages.innerHTML = data.map((m, idx) => `
+        <div class="chat-message" data-time="${m.time}" id="msg-${idx}" style="margin-bottom: 4px; font-size: 0.85rem; cursor: pointer; transition: background 0.2s;" onclick="seekToChatTime(${m.time})">
+            <span style="color: var(--primary); font-weight: bold;">${m.username}:</span>
+            <span>${m.message}</span>
+            <span style="color: var(--text-dim); font-size: 0.7rem; float: right;">${formatTime(m.time)}</span>
+        </div>
+    `).join('');
+    
+    downloadChatBtn.onclick = () => {
+        window.open(`/api/chat/export/${chatIdentifier}`, '_blank');
+    };
 
-    if (type === 'file') {
-        if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
-            videoPlayer.remove();
-        }
-        videoPlayer = document.createElement('video');
-        videoPlayer.id = 'videoPlayer';
-        videoPlayer.controls = true;
-        videoPlayer.autoplay = true;
-        videoPlayer.style.position = 'absolute';
-        videoPlayer.style.top = '0';
-        videoPlayer.style.left = '0';
-        videoPlayer.style.width = '100%';
-        videoPlayer.style.height = '100%';
-        videoPlayer.src = `/api/preview/${encodeURIComponent(identifier)}`;
-        
-        // Fallback to Twitch player if local file is not found (404)
-        videoPlayer.onerror = () => {
-            console.log('Local preview failed, falling back to Twitch player');
-            videoPlayer.remove();
-            // We don't have the original VOD ID here easily if it was just a filename, 
-            // but if it's a numeric ID that was mislabeled as 'file', this would work.
-            // Since we are now explicit, this fallback is less likely to be needed for VODs.
-        };
-        
-        wrapper.appendChild(videoPlayer);
-    } else {
-        if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
-            videoPlayer.remove();
-        }
-        videoPlayer = document.createElement('iframe');
-        videoPlayer.id = 'videoPlayer';
-        videoPlayer.src = `https://player.twitch.tv/?video=${identifier}&parent=${hostname}`;
-        videoPlayer.style.width = '100%';
-        videoPlayer.style.height = '100%';
-        videoPlayer.style.border = 'none';
-        videoPlayer.allowFullscreen = true;
-        wrapper.appendChild(videoPlayer);
-    }
-    
-    document.getElementById('previewModal').classList.add('active');
-    
-    let chatIdentifier = identifier;
-    const videoIdMatch = identifier.match(/\[(v\d+)\]/);
-    if (videoIdMatch) {
-        chatIdentifier = videoIdMatch[1];
-    } else if (type === 'file' && (identifier.includes('.') || identifier.length > 20)) {
-        // Keep the identifier as the filename, the backend will now handle the lookup
-        chatIdentifier = identifier;
-    }
-    
-    try {
-        if (!chatIdentifier) {
-            chatContainer.style.display = 'none';
-            return;
-        }
-        const response = await fetch(`/api/chat/${chatIdentifier}`);
-        
-        if (response.status === 202) {
-            const data = await response.json();
-            chatContainer.style.display = 'block';
-            chatMessages.innerHTML = `<div style="text-align: center; color: var(--text-dim); padding: 20px;">${data.message}</div>`;
-            
-            // Poll for chat completion
-            const pollInterval = setInterval(async () => {
-                const pollRes = await fetch(`/api/chat/${chatIdentifier}`);
-                if (pollRes.status === 200) {
-                    const pollData = await pollRes.json();
-                    if (pollData.length > 0) {
-                        clearInterval(pollInterval);
-                        renderChatMessages(pollData, chatIdentifier);
-                    }
-                }
-            }, 3000);
-            return;
-        }
-
-        const data = await response.json();
-        
-        if (data.error || data.length === 0) {
-            chatContainer.style.display = 'none';
-        } else {
-            renderChatMessages(data, chatIdentifier);
-        }
-    } catch (e) {
-        console.error('Failed to load chat:', e);
-        chatContainer.style.display = 'none';
+    const videoPlayer = document.getElementById('videoPlayer');
+    if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
+        videoPlayer.ontimeupdate = () => syncChat(videoPlayer.currentTime);
     }
 }
-
-function renderChatMessages(data, chatIdentifier) {
     const chatContainer = document.getElementById('chatContainer');
     const chatMessages = document.getElementById('chatMessages');
     const downloadChatBtn = document.getElementById('downloadChatBtn');
@@ -281,5 +206,4 @@ window.addEventListener('keydown', (e) => {
 window.searchVideos = searchVideos;
 window.toggleFavorite = toggleFavorite;
 window.downloadVideo = downloadVideo;
-window.previewVideo = previewVideo;
 window.closePreview = closePreview;
