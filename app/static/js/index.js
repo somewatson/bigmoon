@@ -12,22 +12,56 @@ function toggleSidebar() {
 }
 window.toggleSidebar = toggleSidebar;
 
-async function previewVideo(filename) {
+async function previewVideo(filename, type = 'file') {
     const modal = document.getElementById('previewModal');
-    const video = document.getElementById('videoPlayer');
+    const wrapper = document.getElementById('videoPlayerWrapper');
     const chatContainer = document.getElementById('chatContainer');
     const chatMessages = document.getElementById('chatMessages');
     const downloadChatBtn = document.getElementById('downloadChatBtn');
     
     modal.classList.add('active');
     
+    let videoPlayer = document.getElementById('videoPlayer');
+    if (!videoPlayer) {
+        videoPlayer = document.createElement(type === 'file' ? 'video' : 'iframe');
+        videoPlayer.id = 'videoPlayer';
+        wrapper.appendChild(videoPlayer);
+    }
+
+    if (type === 'file') {
+        if (videoPlayer.tagName === 'IFRAME') {
+            videoPlayer.remove();
+            videoPlayer = document.createElement('video');
+            videoPlayer.id = 'videoPlayer';
+            wrapper.appendChild(videoPlayer);
+        }
+        videoPlayer.controls = true;
+        videoPlayer.autoplay = true;
+        videoPlayer.style.position = 'absolute';
+        videoPlayer.style.top = '0';
+        videoPlayer.style.left = '0';
+        videoPlayer.style.width = '100%';
+        videoPlayer.style.height = '100%';
+        videoPlayer.src = `/api/preview/${encodeURIComponent(filename)}`;
+    } else {
+        if (videoPlayer.tagName === 'VIDEO') {
+            videoPlayer.remove();
+            videoPlayer = document.createElement('iframe');
+            videoPlayer.id = 'videoPlayer';
+            wrapper.appendChild(videoPlayer);
+        }
+        const hostname = window.location.hostname;
+        videoPlayer.src = `https://player.twitch.tv/?video=${filename}&parent=${hostname}`;
+        videoPlayer.style.width = '100%';
+        videoPlayer.style.height = '100%';
+        videoPlayer.style.border = 'none';
+        videoPlayer.allowFullscreen = true;
+    }
+    
     // Extract video_id from filename if possible (assuming [id] pattern)
     const match = filename.match(/\[([a-zA-Z0-9]+)\]/);
-    const videoId = match ? match[1] : null;
+    const videoId = match ? match[1] : (type === 'vod' ? filename : null);
     
-    video.src = `/api/preview/${encodeURIComponent(filename)}`;
-    
-    // Handle Chat
     if (videoId) {
         chatContainer.style.display = 'block';
         chatMessages.innerHTML = 'Loading chat...';

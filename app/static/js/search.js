@@ -54,7 +54,7 @@ async function searchVideos() {
                     <p>Created: ${new Date(video.created_at).toLocaleDateString()} | Duration: ${durationStr}</p>
                     <div style="display: flex; gap: 10px; margin-bottom: 15px;">
                             <button onclick="downloadVideo('${video.url}', '${video.id}')" style="flex: 1;" data-tooltip="Download this VOD">Download</button>
-                            <button onclick="previewVideo('${video.id}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>
+                            <button onclick="previewVideo('${video.id}', 'vod')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>
                             <a href="${video.url}" target="_blank" style="text-align: center; display: flex; align-items: center; justify-content: center; background: #444; color: white; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Open on Twitch">View VOD</a>
                         </div>
                     </div>
@@ -100,7 +100,7 @@ async function downloadVideo(url, id) {
     }
 }
 
-async function previewVideo(identifier) {
+async function previewVideo(identifier, type) {
     const hostname = window.location.hostname;
     const wrapper = document.getElementById('videoPlayerWrapper');
     const chatContainer = document.getElementById('chatContainer');
@@ -109,11 +109,7 @@ async function previewVideo(identifier) {
 
     let videoPlayer = document.getElementById('videoPlayer');
 
-    // Improved heuristic: if it's purely numeric, it's definitely a Twitch video_id
-    const isNumericId = /^\d+$/.test(identifier);
-    const isFilename = identifier.includes('.') || identifier.length > 20;
-
-    if (isFilename && !isNumericId) {
+    if (type === 'file') {
         if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
             videoPlayer.remove();
         }
@@ -126,13 +122,15 @@ async function previewVideo(identifier) {
         videoPlayer.style.left = '0';
         videoPlayer.style.width = '100%';
         videoPlayer.style.height = '100%';
-        videoPlayer.src = `/api/preview/${identifier}`;
+        videoPlayer.src = `/api/preview/${encodeURIComponent(identifier)}`;
         
         // Fallback to Twitch player if local file is not found (404)
         videoPlayer.onerror = () => {
             console.log('Local preview failed, falling back to Twitch player');
             videoPlayer.remove();
-            previewVideo(identifier); // Recurse - since it failed local, it will now likely hit the 'else'
+            // We don't have the original VOD ID here easily if it was just a filename, 
+            // but if it's a numeric ID that was mislabeled as 'file', this would work.
+            // Since we are now explicit, this fallback is less likely to be needed for VODs.
         };
         
         wrapper.appendChild(videoPlayer);
@@ -156,7 +154,7 @@ async function previewVideo(identifier) {
     const videoIdMatch = identifier.match(/\[(v\d+)\]/);
     if (videoIdMatch) {
         chatIdentifier = videoIdMatch[1];
-    } else if (identifier.includes('.') || identifier.length > 20) {
+    } else if (type === 'file' && (identifier.includes('.') || identifier.length > 20)) {
         // Keep the identifier as the filename, the backend will now handle the lookup
         chatIdentifier = identifier;
     }
