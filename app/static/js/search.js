@@ -109,7 +109,11 @@ async function previewVideo(identifier) {
 
     let videoPlayer = document.getElementById('videoPlayer');
 
-    if (identifier.includes('.') || identifier.length > 20) {
+    // Improved heuristic: if it's purely numeric, it's definitely a Twitch video_id
+    const isNumericId = /^\d+$/.test(identifier);
+    const isFilename = identifier.includes('.') || identifier.length > 20;
+
+    if (isFilename && !isNumericId) {
         if (videoPlayer && videoPlayer.tagName === 'IFRAME') {
             videoPlayer.remove();
         }
@@ -123,6 +127,14 @@ async function previewVideo(identifier) {
         videoPlayer.style.width = '100%';
         videoPlayer.style.height = '100%';
         videoPlayer.src = `/api/preview/${identifier}`;
+        
+        // Fallback to Twitch player if local file is not found (404)
+        videoPlayer.onerror = () => {
+            console.log('Local preview failed, falling back to Twitch player');
+            videoPlayer.remove();
+            previewVideo(identifier); // Recurse - since it failed local, it will now likely hit the 'else'
+        };
+        
         wrapper.appendChild(videoPlayer);
     } else {
         if (videoPlayer && videoPlayer.tagName === 'VIDEO') {
