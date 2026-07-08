@@ -1,0 +1,28 @@
+services:
+  bigmoon:
+    build: .
+    container_name: bigmoon
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    volumes:
+      - ./data:/data
+      - ./app:/app
+      - ./downloads:/app/downloads
+      - ./logs:/app/logs
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+    devices:
+      - /dev/dri:/dev/dri
+    ipc: host
+    restart: unless-stopped
+
+    # NVIDIA GPU settings
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
