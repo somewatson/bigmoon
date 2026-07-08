@@ -13,14 +13,16 @@ social_bp = Blueprint('social', __name__)
 def get_global_library():
     tasks = DownloadTask.query.filter(DownloadTask.status == 'completed').all()
     return jsonify({
-        'downloads': [{
+        'files': [{
             'id': t.id,
             'video_id': t.video_id,
             'filename': t.filename,
             'status': t.status,
             'user_id': t.user_id,
             'url': t.url,
-            'created_at': t.created_at.isoformat() if t.created_at else None
+            'created_at': t.created_at.isoformat() if t.created_at else None,
+            'size': 'Unknown',
+            'type': 'original'
         } for t in tasks]
     })
 
