@@ -7,7 +7,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 # Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential cmake git pkg-config wget yasm nasm gpg ca-certificates libssl-dev \
-    meson ninja-build \
+    meson ninja-build mold \
     && rm -rf /var/lib/apt/lists/*
 
 # Install NVIDIA codec headers for NVENC support
@@ -35,7 +35,7 @@ RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master
     tar -xvf SVT-AV1-master.tar.gz && \
     cd SVT-AV1-master && \
     mkdir build && cd build && \
-    cmake .. -DCMAKE_C_FLAGS="-flto=auto" -DCMAKE_CXX_FLAGS="-flto=auto" && \
+    cmake .. -DCMAKE_C_FLAGS="-flto=auto" -DCMAKE_CXX_FLAGS="-flto=auto" -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=mold" && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
