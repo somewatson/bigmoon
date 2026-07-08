@@ -244,6 +244,9 @@ def preview_video(filename):
     decoded_filename = unquote(filename)
     safe_filename = os.path.basename(decoded_filename)
     
+    # Try to find the task to know who this belongs to (for logging/metrics)
+    task = DownloadTask.query.filter_by(filename=safe_filename).first()
+    
     # Check if this is a numeric video_id instead of a filename
     is_video_id = safe_filename.isdigit()
     
