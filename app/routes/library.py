@@ -238,6 +238,7 @@ def bulk_compress_files():
     return jsonify({'message': message, 'taskIds': task_ids, 'skipped': skipped_files})
 
 @library_bp.route('/api/preview/<path:filename>')
+@login_required
 def preview_video(filename):
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     decoded_filename = unquote(filename)
