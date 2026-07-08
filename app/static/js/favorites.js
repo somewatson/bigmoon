@@ -41,38 +41,22 @@ async function loadFavorites() {
         }
         
         // Recommended Channels Section
-        const recs = ['shodesu', 'puddotv'];
+        const recs = ['puddotv', 'shodesu', 'omegamixed', 'somewatson', 'sedurrr', 'dropscollectors'];
         const recsSection = document.createElement('div');
         recsSection.style.gridColumn = '1 / -1';
         recsSection.style.marginTop = '40px';
-        recsSection.innerHTML = `<h3 style="margin-bottom: 20px; color: var(--text-dim);">Recommended Channels</h3>`;
+        recsSection.innerHTML = `
+            <h3 style="margin-bottom: 10px; color: var(--text-dim);">Recommended (Washodo members):</h3>
+            <div class="recs-text-list" style="display: flex; flex-direction: column; gap: 5px; font-family: monospace; font-size: 1rem;">
+                ${recs.map(channel => `
+                    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="document.getElementById('channelInput').value='${channel}'; window.showTab('search'); searchVideos();">
+                        <span>${channel}</span>
+                        <button class="fav-card-add" onclick="toggleFavorite('${channel}', event)" data-tooltip="Add to Favorites" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; font-size: 0.8rem; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--primary)';">❤️</button>
+                    </div>
+                `).join('')}
+            </div>
+        `;
         
-        const recsGrid = document.createElement('div');
-        recsGrid.className = 'favorites-grid';
-        
-        recs.forEach(channel => {
-            const card = document.createElement('div');
-            card.className = 'fav-card';
-            const thumbUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
-            
-            card.innerHTML = `
-                <img src="${thumbUrl}" alt="avatar">
-                <div class="fav-card-info">
-                    <span class="fav-card-name">${channel}</span>
-                    <p class="fav-card-description">Washodo Member</p>
-                    <a href="https://twitch.tv/${channel}" target="_blank" class="fav-card-link">Visit Twitch Profile ↗</a>
-                </div>
-                <button class="fav-card-add" onclick="toggleFavorite('${channel}', event)" data-tooltip="Add to Favorites" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; font-size: 1.2rem; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--primary)';">❤️</button>
-            `;
-            card.onclick = () => {
-                document.getElementById('channelInput').value = channel;
-                window.showTab('search');
-                searchVideos();
-            };
-            recsGrid.appendChild(card);
-        });
-        
-        recsSection.appendChild(recsGrid);
         grid.appendChild(recsSection);
 
     } catch (e) {
