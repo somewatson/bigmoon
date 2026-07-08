@@ -47,10 +47,10 @@ async function loadFavorites() {
         recsSection.style.marginTop = '40px';
         recsSection.innerHTML = `
             <h3 style="margin-bottom: 10px; color: var(--text-dim);">Recommended (Washodo members):</h3>
-            <div class="recs-text-list" style="display: flex; flex-direction: column; gap: 5px; font-family: monospace; font-size: 1rem;">
+            <div class="recs-text-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
                 ${recs.map(channel => `
-                    <div style="display: flex; align-items: center; gap: 10px; cursor: pointer;" onclick="document.getElementById('channelInput').value='${channel}'; window.showTab('search'); searchVideos();">
-                        <span>${channel}</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <div class="rec-tag" onclick="document.getElementById('channelInput').value='${channel}'; window.showTab('search'); searchVideos();">${channel}</div>
                         <button class="fav-card-add" onclick="toggleFavorite('${channel}', event)" data-tooltip="Add to Favorites" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; font-size: 0.8rem; width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--primary)';">❤️</button>
                     </div>
                 `).join('')}
