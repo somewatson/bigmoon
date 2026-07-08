@@ -10,6 +10,12 @@ RUN apt-get update && apt-get install -y \
     meson ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
+# Install NVIDIA codec headers for NVENC support
+RUN git clone https://github.com/FFmpeg/nv-codec-headers && \
+    cd nv-codec-headers && \
+    make install && \
+    cd .. && rm -rf nv-codec-headers
+
 # Conditional Intel GPU setup for amd64
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null && \
@@ -47,7 +53,7 @@ RUN git clone https://code.videolan.org/videolan/dav1d && \
 RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
     tar -xjf ffmpeg-snapshot.tar.bz2 && \
     cd $(tar -tf ffmpeg-snapshot.tar.bz2 | head -1 | cut -f1 -d'/') && \
-    CONF_FLAGS="--enable-gpl --enable-nonfree --enable-libx264 --enable-libx265 --enable-libsvtav1 --enable-libdav1d --enable-openssl" && \
+    CONF_FLAGS="--enable-gpl --enable-nonfree --enable-libx264 --enable-libx265 --enable-libsvtav1 --enable-libdav1d --enable-openssl --enable-nvenc" && \
     if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         CONF_FLAGS="$CONF_FLAGS --enable-libvpl --enable-vaapi"; \
     fi && \
