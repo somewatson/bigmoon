@@ -15,6 +15,8 @@
 - **Persistence**: SQLite database stored in `/data`.
 - **VOD Storage**: Downloaded files stored in `/app/downloads` (or `/downloads` on host).
 - **Hardware Accel**: Relies on Intel VA-API and `iHD` driver. Uses SVT-AV1 for AV1 encoding.
+- **Queueing**: Use Dramatiq + RabbitMQ. **Do NOT use Redis**.
+- **Deployment**: Prefer `docker compose` over `docker run`.
 - **Code Style**: Files should aim for a maximum length of 750 lines. If a file exceeds this threshold, start extracting related functionality into modular files.
 
 ## Environment & Setup
