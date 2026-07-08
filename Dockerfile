@@ -35,7 +35,7 @@ RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master
     tar -xvf SVT-AV1-master.tar.gz && \
     cd SVT-AV1-master && \
     mkdir build && cd build && \
-    cmake .. -DCMAKE_C_FLAGS="-flto=auto" -DCMAKE_CXX_FLAGS="-flto=auto" -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=mold" && \
+     cmake .. -DCMAKE_BUILD_TYPE="Release" -DCMAKE_C_FLAGS="-flto=auto" -DCMAKE_CXX_FLAGS="-flto=auto" -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=mold" && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
