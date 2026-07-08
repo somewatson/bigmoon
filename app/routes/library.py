@@ -238,7 +238,6 @@ def bulk_compress_files():
     return jsonify({'message': message, 'taskIds': task_ids, 'skipped': skipped_files})
 
 @library_bp.route('/api/preview/<path:filename>')
-@login_required
 def preview_video(filename):
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     decoded_filename = unquote(filename)
@@ -246,14 +245,6 @@ def preview_video(filename):
     
     # Check if this is a numeric video_id instead of a filename
     is_video_id = safe_filename.isdigit()
-    
-    task = DownloadTask.query.filter_by(filename=safe_filename).first()
-    if not task and not is_video_id:
-        # If it's not a known filename and not a video_id, we can't serve it
-        return jsonify({'error': 'Video file not found'}), 404
-
-    if task and task.user_id != current_user.id and current_user.role != 'admin':
-        return jsonify({'error': 'Unauthorized'}), 403
     
     # If it's a video_id or the file doesn't exist on disk, we can't serve local preview
     video_path = os.path.join(downloads_dir, safe_filename)
