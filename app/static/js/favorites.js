@@ -8,38 +8,73 @@ async function loadFavorites() {
         
         if(data.favorites.length === 0) {
             grid.innerHTML = `
-                <div class="empty-state" style="grid-column: 1 / -1;">
-                    <div class="icon">❤️</div>
-                    <h3>No favorite channels</h3>
-                    <p>Search for your favorite streamers and save them here for quick access.</p>
+                <div class="empty-state" style="grid-column: 1 / -1; text-align: center;">
+                    <div class="icon" style="font-size: 3rem; cursor: pointer;" onclick="window.showTab('search')">❤️</div>
+                    <h3 style="cursor: pointer;" onclick="window.showTab('search')">No favorite channels</h3>
+                    <p>Click here to search for your favorite streamers and save them here for quick access.</p>
                 </div>
             `;
-            return;
+        } else {
+            data.favorites.forEach(fav => {
+                const channel = fav.channel_name;
+                const card = document.createElement('div');
+                card.className = 'fav-card';
+                
+                const thumbUrl = fav.profile_image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
+                
+                card.innerHTML = `
+                    <img src="${thumbUrl}" alt="avatar">
+                    <div class="fav-card-info">
+                        <span class="fav-card-name">${channel}</span>
+                        <p class="fav-card-description">${fav.description || 'No description available.'}</p>
+                        <a href="https://twitch.tv/${channel}" target="_blank" class="fav-card-link">Visit Twitch Profile ↗</a>
+                    </div>
+                    <button class="fav-card-remove" onclick="removeFavorite('${channel}', event)" data-tooltip="Remove from Favorites">✕</button>
+                `;
+                card.onclick = () => {
+                    document.getElementById('channelInput').value = channel;
+                    window.showTab('search');
+                    searchVideos();
+                };
+                grid.appendChild(card);
+            });
         }
         
-        data.favorites.forEach(fav => {
-            const channel = fav.channel_name;
+        // Recommended Channels Section
+        const recs = ['shodesu', 'puddotv'];
+        const recsSection = document.createElement('div');
+        recsSection.style.gridColumn = '1 / -1';
+        recsSection.style.marginTop = '40px';
+        recsSection.innerHTML = `<h3 style="margin-bottom: 20px; color: var(--text-dim);">Recommended Channels</h3>`;
+        
+        const recsGrid = document.createElement('div');
+        recsGrid.className = 'favorites-grid';
+        
+        recs.forEach(channel => {
             const card = document.createElement('div');
             card.className = 'fav-card';
-            
-            const thumbUrl = fav.profile_image_url || `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
+            const thumbUrl = `https://api.dicebear.com/7.x/initials/svg?seed=${channel}`;
             
             card.innerHTML = `
                 <img src="${thumbUrl}" alt="avatar">
                 <div class="fav-card-info">
                     <span class="fav-card-name">${channel}</span>
-                    <p class="fav-card-description">${fav.description || 'No description available.'}</p>
+                    <p class="fav-card-description">Washodo Member</p>
                     <a href="https://twitch.tv/${channel}" target="_blank" class="fav-card-link">Visit Twitch Profile ↗</a>
                 </div>
-                <button class="fav-card-remove" onclick="removeFavorite('${channel}', event)" data-tooltip="Remove from Favorites">✕</button>
+                <button class="fav-card-add" onclick="toggleFavorite('${channel}', event)" data-tooltip="Add to Favorites" style="background: transparent; border: 1px solid var(--primary); color: var(--primary); cursor: pointer; font-size: 1.2rem; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center; transition: 0.2s;" onmouseover="this.style.background='var(--primary)'; this.style.color='white'" onmouseout="this.style.background='transparent'; this.style.color='var(--primary)';">❤️</button>
             `;
             card.onclick = () => {
                 document.getElementById('channelInput').value = channel;
                 window.showTab('search');
                 searchVideos();
             };
-            grid.appendChild(card);
+            recsGrid.appendChild(card);
         });
+        
+        recsSection.appendChild(recsGrid);
+        grid.appendChild(recsSection);
+
     } catch (e) {
         console.error('Failed to load favorites:', e);
         grid.innerHTML = '<div class="empty-state"><p style="color: var(--error);">Error loading favorites.</p></div>';
@@ -47,10 +82,11 @@ async function loadFavorites() {
 }
 
 async function removeFavorite(channel, event) {
-    event.stopPropagation();
+    if (event) event.stopPropagation();
     if (!confirm(`Remove ${channel} from favorites?`)) return;
     await toggleFavorite(channel);
 }
+
 
 window.loadFavorites = loadFavorites;
 window.removeFavorite = removeFavorite;

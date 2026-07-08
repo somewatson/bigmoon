@@ -239,3 +239,78 @@ window.bulkDelete = bulkDelete;
 window.bulkCompress = bulkCompress;
 window.closeCompressModal = closeCompressModal;
 window.confirmBulkCompress = confirmBulkCompress;
+
+async function loadGlobalLibrary() {
+    const grid = document.getElementById('globalLibraryGrid');
+    if (!grid) return;
+
+    grid.innerHTML = '<div class="empty-state">Loading community library...</div>';
+
+    try {
+        const response = await apiFetch('/api/library/global');
+        const data = await response.json();
+
+        if (!data.files || data.files.length === 0) {
+            grid.innerHTML = `
+                <div class="empty-state">
+                    <div class="icon">🌍</div>
+                    <h3>Global Library is empty</h3>
+                    <p>No VODs have been archived by the community yet.</p>
+                </div>
+            `;
+            return;
+        }
+
+        const frag = document.createDocumentFragment();
+        
+        for (const file of data.files) {
+            const item = document.createElement('div');
+            item.className = 'file-item';
+            
+            let sizeInfo = `Size: ${file.size}`;
+            if (file.savings) {
+                sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
+            }
+            
+            const encoderBadge = file.encoder_type 
+                ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
+                : '';
+            
+            const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
+            const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
+            
+            const thumbHtml = `<img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">`;
+            const escapedFilename = file.filename.replace(/'/g, "\\'");
+
+            item.innerHTML = `
+                <div class="checkbox-wrapper"></div>
+                ${thumbHtml}
+                <div class="file-details">
+                    <h4 class="file-name">${file.filename}</h4>
+                    <div class="file-meta">
+                        <span class="meta-item">${sizeInfo}</span>
+                        <span class="meta-item">• Type: ${file.type}</span>
+                        <span class="meta-item">• ${createdDate}</span>
+                        ${encoderBadge}
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
+                    ${(file.filename) ? `<button onclick="previewVideo('${escapedFilename}', 'file')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
+                    ${file.video_id ? `<button onclick="viewChat('${file.video_id}')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="View Chat">View Chat</button>` : ''}
+                    ${file.video_id ? `<button onclick="window.open('/api/chat/export/${file.video_id}', '_blank')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="Download Chat JSON">Chat JSON</button>` : ''}
+                </div>
+            `;
+            frag.appendChild(item);
+        }
+
+        grid.innerHTML = '';
+        grid.appendChild(frag);
+
+    } catch (e) {
+        grid.innerHTML = '<div class="empty-state">Failed to load global library.</div>';
+        console.error('Global library load failed:', e);
+    }
+}
+
+window.loadGlobalLibrary = loadGlobalLibrary;

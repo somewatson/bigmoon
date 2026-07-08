@@ -8,6 +8,22 @@ from utils.system import get_twitch_token
 
 social_bp = Blueprint('social', __name__)
 
+@social_bp.route('/api/library/global', methods=['GET'])
+@login_required
+def get_global_library():
+    tasks = DownloadTask.query.filter(DownloadTask.status == 'completed').all()
+    return jsonify({
+        'downloads': [{
+            'id': t.id,
+            'video_id': t.video_id,
+            'filename': t.filename,
+            'status': t.status,
+            'user_id': t.user_id,
+            'url': t.url,
+            'created_at': t.created_at.isoformat() if t.created_at else None
+        } for t in tasks]
+    })
+
 @social_bp.route('/api/videos', methods=['POST'])
 @login_required
 def list_videos():

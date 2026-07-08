@@ -45,6 +45,7 @@
         <a class="nav-item {% if request.args.get('tab') == 'favorites' %}active{% endif %}" href="{{ url_for('index', tab='favorites') }}" id="nav-favorites" data-tab="favorites"><span>❤️</span> <span>Favorites</span></a>
         <a class="nav-item {% if request.args.get('tab') == 'automation' %}active{% endif %}" href="{{ url_for('index', tab='automation') }}" id="nav-automation" data-tab="automation"><span>🤖</span> <span>Auto-Download</span></a>
         <a class="nav-item {% if request.args.get('tab') == 'library' %}active{% endif %}" href="{{ url_for('index', tab='library') }}" id="nav-library" data-tab="library"><span>📚</span> <span>My Library</span></a>
+        <a class="nav-item {% if request.args.get('tab') == 'global-library' %}active{% endif %}" href="{{ url_for('index', tab='global-library') }}" id="nav-global-library" data-tab="global-library"><span>🌍</span> <span>Global Library</span></a>
         <a class="nav-item {% if request.args.get('tab') == 'compress' %}active{% endif %}" href="{{ url_for('index', tab='compress') }}" id="nav-compress" data-tab="compress"><span>⚡</span> <span>Compress (QSV)</span></a>
         <a class="nav-item {% if request.args.get('tab') == 'tasks' %}active{% endif %}" href="{{ url_for('index', tab='tasks') }}" id="nav-tasks" data-tab="tasks"><span>⏳</span> <span>Active Tasks</span></a>
         
@@ -220,17 +221,17 @@
                              <h2>My Library</h2>
                              <input type="text" id="librarySearch" placeholder="Filter library..." style="max-width: 300px; padding: 6px 12px; font-size: 0.9rem;" oninput="loadLibrary()">
                                   <select id="librarySort" style="padding: 6px; font-size: 0.9rem;" onchange="loadLibrary()">
-                                      <option value="date" selected>Sort by Date</option>
-                                      <option value="name">Sort by Name</option>
-                                      <option value="size">Sort by Size</option>
-                                  </select>
+                                       <option value="date" selected>Sort by Date</option>
+                                       <option value="name">Sort by Name</option>
+                                       <option value="size">Sort by Size</option>
+                                   </select>
 
                          </div>
 
                         <div id="bulkActions" class="bulk-actions">
                             <span id="selectedCount" style="font-size: 0.85rem; color: var(--text-dim);">0 selected</span>
-                                <button onclick="bulkCompress()" style="background: var(--primary); font-size: 0.8rem;" data-tooltip="Compress all selected VODs">Batch Compress</button>
-                                <button onclick="bulkDelete()" style="background: var(--error); font-size: 0.8rem;" data-tooltip="Permanently delete selected files">Delete Selected</button>
+                                 <button onclick="bulkCompress()" style="background: var(--primary); font-size: 0.8rem;" data-tooltip="Compress all selected VODs">Batch Compress</button>
+                                 <button onclick="bulkDelete()" style="background: var(--error); font-size: 0.8rem;" data-tooltip="Permanently delete selected files">Delete Selected</button>
 
                         </div>
                     </div>
@@ -256,6 +257,15 @@
             </h3>
             <div id="libraryListCompressed" class="task-list"></div>
         </div>
+
+        <div id="tab-global-library" class="tab-content">
+            <div class="sticky-header">
+                <h2>Global Library</h2>
+                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">This is a community library containing all VODs archived by all users of this instance.</p>
+            </div>
+            <div id="globalLibraryGrid" class="task-list"></div>
+        </div>
+
 
         <div id="tab-compress" class="tab-content">
             <h2>Compress Existing VODs</h2>

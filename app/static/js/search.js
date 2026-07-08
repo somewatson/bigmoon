@@ -52,11 +52,14 @@ async function searchVideos() {
                 <div class="video-card-body">
                     <h3>${video.title}</h3>
                     <p>Created: ${new Date(video.created_at).toLocaleDateString()} | Duration: ${durationStr}</p>
-                    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-                            <button onclick="downloadVideo('${video.url}', '${video.id}')" style="flex: 1;" data-tooltip="Download this VOD">Download</button>
-                            <button onclick="previewVideo('${video.id}', 'vod')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>
-                            <a href="${video.url}" target="_blank" style="text-align: center; display: flex; align-items: center; justify-content: center; background: #444; color: white; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Open on Twitch">View VOD</a>
+                    <div style="display: flex; flex-direction: column; gap: 5px; margin-bottom: 15px;">
+                        <div style="display: flex; gap: 10px;">
+                                <button onclick="downloadVideo('${video.url}', '${video.id}')" style="flex: 1;" data-tooltip="Download this VOD">Download</button>
+                                <button onclick="previewVideo('${video.id}', 'vod')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>
+                                <a href="${video.url}" target="_blank" style="text-align: center; display: flex; align-items: center; justify-content: center; background: #444; color: white; text-decoration: none; border-radius: 6px; font-size: 0.8rem; font-weight: bold; padding: 0 10px; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Open on Twitch">View VOD</a>
                         </div>
+                        <span style="font-size: 0.7rem; color: var(--text-dim); text-align: center; font-style: italic;">Downloading this VOD will share it with all other users of this instance.</span>
+                    </div>
                     </div>
             `;
             grid.appendChild(card);
