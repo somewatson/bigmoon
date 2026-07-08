@@ -12,8 +12,9 @@
     - [ ] Click "View Logs" for an active/failed task.
     - [ ] Verify logs load correctly and the modal functions (refresh, copy, etc.) work as expected.
 
-### 8. Task Pause & Resume System
-**Goal**: Allow downloads and compression tasks to persist across Docker container restarts and deployments without restarting from 0%.
-- [ ] **Verification**:
-    - [ ] Simulate container restart during large download and verify resume from offset.
+### 10. UI Compression Savings Logic
+**Goal**: Prevent displaying inaccurate file size savings in the UI if a file is still being compressed.
+- [ ] **Logic Update**: Modify UI/API to hide or mark "savings" as pending until compression status is complete.
+- [ ] **Verification**: Start a compression task and verify size savings are not shown until the task finishes.
+
 
