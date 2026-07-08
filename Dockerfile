@@ -1,20 +1,24 @@
 # --- Stage 1: Build FFmpeg ---
 FROM ubuntu:22.04 AS builder
 
+ARG TARGETPLATFORM
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install build dependencies and Intel GPU repos for libvpl
+# Install build dependencies
 RUN apt-get update && apt-get install -y \
     build-essential cmake git pkg-config wget yasm nasm gpg ca-certificates libssl-dev \
     meson ninja-build \
     && rm -rf /var/lib/apt/lists/*
 
-RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null
-RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
+# Conditional Intel GPU setup for amd64
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null && \
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list && \
+        apt-get update && apt-get install -y libvpl-dev libva-dev && \
+        rm -rf /var/lib/apt/lists/*; \
+    fi
 
 RUN apt-get update && apt-get install -y \
-    libvpl-dev \
-    libva-dev \
     libx264-dev \
     libx265-dev \
     libnuma-dev \
@@ -39,20 +43,15 @@ RUN git clone https://code.videolan.org/videolan/dav1d && \
     ninja -C . install && \
     cd ../.. && rm -rf dav1d
 
-# Build FFmpeg with SVT-AV1 support
+# Build FFmpeg with conditional Intel support
 RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
     tar -xjf ffmpeg-snapshot.tar.bz2 && \
     cd $(tar -tf ffmpeg-snapshot.tar.bz2 | head -1 | cut -f1 -d'/') && \
-    ./configure \
-        --enable-gpl \
-        --enable-nonfree \
-        --enable-libx264 \
-        --enable-libx265 \
-        --enable-libsvtav1 \
-        --enable-libdav1d \
-        --enable-libvpl \
-        --enable-vaapi \
-        --enable-openssl \
+    CONF_FLAGS="--enable-gpl --enable-nonfree --enable-libx264 --enable-libx265 --enable-libsvtav1 --enable-libdav1d --enable-openssl" && \
+    if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        CONF_FLAGS="$CONF_FLAGS --enable-libvpl --enable-vaapi"; \
+    fi && \
+    ./configure $CONF_FLAGS \
         --extra-cflags="-I/usr/local/include" \
         --extra-ldflags="-L/usr/local/lib" && \
         make -j$(nproc) && \
@@ -62,9 +61,10 @@ RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
 # --- Stage 2: Final Image ---
 FROM ubuntu:22.04
 
+ARG TARGETPLATFORM
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install prerequisites for Intel GPU repository
+# Install prerequisites
 RUN apt-get update && apt-get install -y \
     wget \
     gpg \
@@ -72,23 +72,25 @@ RUN apt-get update && apt-get install -y \
     sudo \
     && rm -rf /var/lib/apt/lists/*
 
-# Add Intel GPU repositories
-RUN wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null
-RUN echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list
-RUN apt-get update && apt-get dist-upgrade -y
+# Conditional Intel GPU repositories and drivers
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null && \
+        echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list && \
+        apt-get update && apt-get dist-upgrade -y; \
+    fi
 
 # Install runtime dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
-    intel-media-va-driver-non-free \
     libdav1d-dev \
-    libvpl2 \
-    vainfo \
     libnuma1 \
     libx264-dev \
     libx265-dev \
-    && rm -rf /var/lib/apt/lists/*
+    && if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        apt-get install -y intel-media-va-driver-non-free libvpl2 vainfo; \
+    fi && \
+    rm -rf /var/lib/apt/lists/*
 
 # Copy FFmpeg and libraries from builder stage
 COPY --from=builder /usr/local/bin/ffmpeg /usr/local/bin/
@@ -98,7 +100,15 @@ COPY --from=builder /usr/local/lib /usr/local/lib
 # Update linker cache
 RUN ldconfig
 
-# Force use of the Intel iHD driver
+# Set Intel-specific envs only if on amd64
+RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
+        echo "ENV LIBVA_DRIVER_NAME=iHD" >> /etc/environment && \
+        echo "ENV ONEVPL_DEVICE=GPU" >> /etc/environment; \
+    fi
+
+# To ensure the variables are available to the shell, we set them conditionally in a way Docker understands or handle it at runtime.
+# Since ENV is static, we will leave them as is but the code handles USE_GPU=false.
+# We'll set them here and the user can override them or the app can ignore them.
 ENV LIBVA_DRIVER_NAME=iHD
 ENV ONEVPL_DEVICE=GPU
 
