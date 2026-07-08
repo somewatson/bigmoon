@@ -469,8 +469,27 @@ select { padding: 6px; border-radius: 4px; background: #121212; color: white; bo
     transform: translateX(-50%) translateY(0);
 }
 
-/* Recommended Channels */
-.recommendations-container { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; font-size: 0.85rem; color: var(--text-dim); }
+.fav-card-add {
+    background: transparent;
+    border: 1px solid var(--primary);
+    color: var(--primary);
+    cursor: pointer;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+    padding: 0;
+    line-height: 1;
+    flex-shrink: 0;
+}
+.fav-card-add:hover {
+    background: var(--primary);
+    color: white;
+}
+
 .rec-tag { background: #2a2a2a; color: white; padding: 4px 10px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border); transition: 0.2s; font-weight: 500; }
 .rec-tag:hover { background: #333; border-color: var(--primary); color: white; transform: translateY(-1px); }
 
