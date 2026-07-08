@@ -82,6 +82,17 @@ def bootstrap_admin():
         db.create_all()
         cleanup_temp_files()
         
+        # Ensure admin user exists on fresh install
+        admin_user = os.getenv('ADMIN_USERNAME')
+        admin_pass = os.getenv('ADMIN_PASSWORD')
+        if admin_user and admin_pass:
+            if not User.query.filter_by(username=admin_user).first():
+                app.logger.info(f"Creating initial admin user: {admin_user}")
+                user = User(username=admin_user, role='admin')
+                user.set_password(admin_pass)
+                db.session.add(user)
+                db.session.commit()
+
         # Start the sequential compression worker
         start_compression_worker()
         
