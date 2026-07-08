@@ -240,6 +240,18 @@ window.bulkCompress = bulkCompress;
 window.closeCompressModal = closeCompressModal;
 window.confirmBulkCompress = confirmBulkCompress;
 
+function toggleAllFiles(checkbox, containerId) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    const checkboxes = container.querySelectorAll('.file-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = checkbox.checked;
+        handleFileSelection(cb);
+    });
+}
+
+window.toggleAllFiles = toggleAllFiles;
+
 async function loadGlobalLibrary() {
     const grid = document.getElementById('globalLibraryGrid');
     if (!grid) return;

@@ -79,6 +79,7 @@ window.showTab = function(tabId) {
         populateFavAutomationGrid();
     }
     if(tabId === 'library') loadLibrary();
+    if(tabId === 'global-library') loadGlobalLibrary();
     if(tabId === 'compress') loadFiles();
     if(tabId === 'tasks') loadTasks();
     
