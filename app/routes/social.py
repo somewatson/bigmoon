@@ -8,23 +8,47 @@ from utils.system import get_twitch_token
 
 social_bp = Blueprint('social', __name__)
 
+def format_size(bytes):
+    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
+        if bytes < 1024.0:
+            return f"{bytes:.2f} {unit}"
+        bytes /= 1024.0
+
 @social_bp.route('/api/library/global', methods=['GET'])
 @login_required
 def get_global_library():
-    tasks = DownloadTask.query.filter(DownloadTask.status == 'completed').all()
-    return jsonify({
-        'files': [{
-            'id': t.id,
-            'video_id': t.video_id,
-            'filename': t.filename,
-            'status': t.status,
-            'user_id': t.user_id,
-            'url': t.url,
-            'created_at': t.created_at.isoformat() if t.created_at else None,
-            'size': 'Unknown',
-            'type': 'original'
-        } for t in tasks]
-    })
+    downloads_dir = '/app/downloads'
+    files_data = []
+    
+    try:
+        if os.path.exists(downloads_dir):
+            for filename in os.listdir(downloads_dir):
+                if filename.startswith('.') or os.path.isdir(os.path.join(downloads_dir, filename)):
+                    continue
+                
+                filepath = os.path.join(downloads_dir, filename)
+                stats = os.stat(filepath)
+                
+                # Try to find corresponding task in DB for more metadata
+                task = DownloadTask.query.filter_by(filename=filename).first()
+                
+                files_data.append({
+                    'id': task.id if task else None,
+                    'video_id': task.video_id if task else None,
+                    'filename': filename,
+                    'status': task.status if task else 'completed',
+                    'user_id': task.user_id if task else None,
+                    'url': task.url if task else None,
+                    'created_at': (task.created_at.isoformat() if task and task.created_at 
+                                  else datetime.fromtimestamp(stats.st_ctime).isoformat()),
+                    'size': format_size(stats.st_size),
+                    'type': 'compress' if 'compressed' in filename.lower() else 'original'
+                })
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.error(f"Error scanning global library: {e}")
+
+    return jsonify({'files': files_data})
 
 @social_bp.route('/api/videos', methods=['POST'])
 @login_required
