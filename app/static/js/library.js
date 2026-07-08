@@ -116,6 +116,7 @@ async function loadLibrary() {
                         <span class="meta-item">${sizeInfo}</span>
                         <span class="meta-item">• Type: ${file.type}</span>
                         <span class="meta-item">• ${createdDate}</span>
+                        ${file.user_id ? `<span class="meta-item" style="color: var(--text-dim); font-style: italic;">(User ID: ${file.user_id})</span>` : ''}
                         ${encoderBadge}
                     </div>
                 </div>
@@ -303,6 +304,7 @@ async function loadGlobalLibrary() {
                         <span class="meta-item">${sizeInfo}</span>
                         <span class="meta-item">• Type: ${file.type}</span>
                         <span class="meta-item">• ${createdDate}</span>
+                        ${file.user_id ? `<span class="meta-item" style="color: var(--text-dim); font-style: italic;">(User ID: ${file.user_id})</span>` : ''}
                         ${encoderBadge}
                     </div>
                 </div>

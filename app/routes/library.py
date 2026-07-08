@@ -263,8 +263,11 @@ def preview_video(filename):
 def download_file(filename):
     downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
     decoded_filename = unquote(filename)
-    task = DownloadTask.query.filter_by(filename=decoded_filename, user_id=current_user.id).first()
-    if not task and current_user.role != 'admin':
-        return "Unauthorized", 403
+    
+    # In Global Library context, we allow any logged-in user to download
+    # but we still check if the file exists
+    path = os.path.join(downloads_dir, decoded_filename)
+    if not os.path.exists(path):
+        return "File not found", 404
     
     return send_from_directory(downloads_dir, decoded_filename, as_attachment=True)
