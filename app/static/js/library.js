@@ -207,17 +207,39 @@ async function confirmBulkCompress() {
         return;
     }
 
+    // Dynamic hardware options for bulk modal
+    const hwPrefSelect = document.getElementById('bulkHwPref');
+    let capabilities = { intel: false, qsv: false, vaapi: false, nvenc: false, amf: false, capabilities: [] };
+    try {
+        const capRes = await fetch('/api/system/capabilities');
+        if (capRes.ok) capabilities = await capRes.json();
+        
+        // Reset and update options
+        hwPrefSelect.innerHTML = '<option value="auto" selected>Auto (Recommended)</option>';
+        if (capabilities.intel) {
+            if (capabilities.qsv) hwPrefSelect.innerHTML += '<option value="qsv">Intel QuickSync (QSV)</option>';
+            if (capabilities.vaapi) hwPrefSelect.innerHTML += '<option value="vaapi">VA-API</option>';
+        } else if (capabilities.capabilities.length > 0) {
+            hwPrefSelect.innerHTML += '<option value="hardware">Hardware Accelerated</option>';
+        }
+        hwPrefSelect.innerHTML += '<option value="sw">Software (CPU)</option>';
+    } catch (e) {
+        console.error('Failed to update bulk hardware options:', e);
+    }
+    
     const codec = document.getElementById('bulkCodec').value;
     const preset = document.getElementById('bulkPreset').value;
+    const hw_pref = hwPrefSelect.value;
     
     closeCompressModal();
-
+    
     try {
         const response = await fetch('/api/library/bulk-compress', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ filenames: selected, codec, preset })
+            body: JSON.stringify({ filenames: selected, codec, preset, hw_pref })
         });
+    
         const data = await response.json();
         if (data.message) {
             showToast(data.message, 'success');
@@ -231,6 +253,7 @@ async function confirmBulkCompress() {
         alert('An error occurred during bulk compression.');
     }
 }
+
 
 window.checkThumbnailStatus = checkThumbnailStatus;
 window.toggleLibraryLoading = toggleLibraryLoading;

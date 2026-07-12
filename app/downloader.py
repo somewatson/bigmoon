@@ -356,6 +356,11 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264', devi
     elif hw_pref == 'vaapi':
         if mapping['hw_vaapi']: encoders.append(mapping['hw_vaapi'])
         if mapping['hw_qsv']: encoders.append(mapping['hw_qsv'])
+    elif hw_pref == 'hardware':
+        # Generic hardware preference: try QSV, then VA-API, then NVENC/AMF if mapped
+        if mapping.get('hw_qsv'): encoders.append(mapping['hw_qsv'])
+        if mapping.get('hw_vaapi'): encoders.append(mapping['hw_vaapi'])
+        # Note: NVENC/AMF mapping can be added to codec_map if needed in future
     else: # auto - prefer QSV
         if mapping['hw_qsv']: encoders.append(mapping['hw_qsv'])
         if mapping['hw_vaapi']: encoders.append(mapping['hw_vaapi'])

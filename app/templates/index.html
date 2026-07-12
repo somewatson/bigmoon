@@ -143,6 +143,16 @@
                 </div>
                 
                 <div class="form-group">
+                    <label>Hardware Acceleration</label>
+                    <select id="bulkHwPref">
+                        <option value="auto" selected>Auto (Recommended)</option>
+                        <option value="qsv">Intel QuickSync (QSV)</option>
+                        <option value="vaapi">VA-API</option>
+                        <option value="sw">Software (CPU)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
                     <label>Preset</label>
                     <select id="bulkPreset">
                         <option value="fast">Fast</option>

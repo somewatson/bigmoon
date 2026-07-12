@@ -170,6 +170,33 @@ def create_user():
     db.session.commit()
     return jsonify({'message': f'User {username} created successfully'})
 
+@admin_bp.route('/api/system/capabilities')
+@login_required
+def system_capabilities():
+    if current_user.role != 'admin' and current_user.role != 'user':
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    try:
+        result = subprocess.run(['ffmpeg', '-encoders'], capture_output=True, text=True, check=True)
+        encoders = result.stdout
+        
+        # Detection logic
+        qsv = ('h264_qsv' in encoders or 'hevc_qsv' in encoders) and os.path.exists('/dev/dri/renderD128')
+        nvenc = ('h264_nvenc' in encoders or 'hevc_nvenc' in encoders) and os.path.exists('/dev/nvidia0')
+        vaapi = ('h264_vaapi' in encoders or 'hevc_vaapi' in encoders) and os.path.exists('/dev/dri/renderD128')
+        amf = 'h264_amf' in encoders or 'hevc_amf' in encoders
+        
+        return jsonify({
+            'intel': qsv or vaapi,
+            'qsv': qsv,
+            'vaapi': vaapi,
+            'nvenc': nvenc,
+            'amf': amf,
+            'capabilities': [cap for cap in ['qsv', 'vaapi', 'nvenc', 'amf'] if locals()[cap]]
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
 @admin_bp.route('/api/system/ffmpeg')
 @login_required
 def ffmpeg_status():
