@@ -181,9 +181,9 @@ def ffmpeg_status():
         encoders = result.stdout
         
         status = {
-            'qsv': 'h264_qsv' in encoders or 'hevc_qsv' in encoders,
-            'nvenc': 'h264_nvenc' in encoders or 'hevc_nvenc' in encoders,
-            'vaapi': 'h264_vaapi' in encoders or 'hevc_vaapi' in encoders,
+            'qsv': ('h264_qsv' in encoders or 'hevc_qsv' in encoders) and os.path.exists('/dev/dri/renderD128'),
+            'nvenc': ('h264_nvenc' in encoders or 'hevc_nvenc' in encoders) and os.path.exists('/dev/nvidia0'),
+            'vaapi': ('h264_vaapi' in encoders or 'hevc_vaapi' in encoders) and os.path.exists('/dev/dri/renderD128'),
             'amf': 'h264_amf' in encoders or 'hevc_amf' in encoders,
             'libx264': 'libx264' in encoders
         }

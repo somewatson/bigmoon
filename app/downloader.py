@@ -348,10 +348,10 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264', devi
     
     mapping = codec_map.get(codec, codec_map['H.264'])
     encoders = []
-    if mapping['hw_vaapi']:
-        encoders.append(mapping['hw_vaapi'])
     if mapping['hw_qsv']:
         encoders.append(mapping['hw_qsv'])
+    if mapping['hw_vaapi']:
+        encoders.append(mapping['hw_vaapi'])
     encoders.append(mapping['sw'])
     
     full_log = []
