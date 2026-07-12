@@ -177,7 +177,7 @@ def system_capabilities():
         return jsonify({'error': 'Forbidden'}), 403
     
     try:
-        result = subprocess.run(['ffmpeg', '-encoders'], capture_output=True, text=True, check=True)
+        result = subprocess.run(['/usr/local/bin/ffmpeg', '-encoders'], capture_output=True, text=True, check=True)
         encoders = result.stdout
         
         # Detection logic
@@ -204,7 +204,7 @@ def ffmpeg_status():
         return jsonify({'error': 'Forbidden'}), 403
     
     try:
-        result = subprocess.run(['ffmpeg', '-encoders'], capture_output=True, text=True, check=True)
+        result = subprocess.run(['/usr/local/bin/ffmpeg', '-encoders'], capture_output=True, text=True, check=True)
         encoders = result.stdout
         
         status = {
