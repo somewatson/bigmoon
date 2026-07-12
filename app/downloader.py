@@ -58,7 +58,7 @@ def compression_worker(device_path):
                     continue
             
             print(f"[Worker {device_path}] Processing task {task_id}: {input_filename}")
-                compress_video(input_filename, preset, task_id, user_id, codec, device_path, hw_pref)
+            compress_video(input_filename, preset, task_id, user_id, codec, device_path, hw_pref)
             
             compression_queue.task_done()
         except Exception as e:
