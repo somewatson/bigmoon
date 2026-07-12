@@ -20,7 +20,7 @@ RUN git clone https://github.com/FFmpeg/nv-codec-headers && \
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         wget -qO - https://repositories.intel.com/gpu/intel-graphics.key | gpg --dearmor | tee /usr/share/keyrings/intel-graphics.gpg >/dev/null && \
         echo "deb [arch=amd64 signed-by=/usr/share/keyrings/intel-graphics.gpg] https://repositories.intel.com/gpu/ubuntu jammy unified" | tee /etc/apt/sources.list.d/intel-gpu-jammy.list && \
-        apt-get update && apt-get install -y libvpl-dev libva-dev && \
+        apt-get update && apt-get install -y libvpl-dev libva-dev intel-media-va-driver-non-free libmfx-dev && \
         rm -rf /var/lib/apt/lists/*; \
     fi
 
@@ -35,7 +35,11 @@ RUN wget https://gitlab.com/AOMediaCodec/SVT-AV1/-/archive/master/SVT-AV1-master
     tar -xvf SVT-AV1-master.tar.gz && \
     cd SVT-AV1-master && \
     mkdir build && cd build && \
-     cmake .. -DCMAKE_BUILD_TYPE="Release" -DCMAKE_C_FLAGS="-flto=auto" -DCMAKE_CXX_FLAGS="-flto=auto" -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=mold" && \
+    EXTRA_CMAKE_FLAGS="" && \
+    if [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        EXTRA_CMAKE_FLAGS="-DCMAKE_C_FLAGS='-march=armv8-a+simd' -DCMAKE_CXX_FLAGS='-march=armv8-a+simd'"; \
+    fi && \
+    cmake .. -DCMAKE_BUILD_TYPE="Release" -DCMAKE_C_FLAGS="-flto=auto" -DCMAKE_CXX_FLAGS="-flto=auto" -DCMAKE_EXE_LINKER_FLAGS="-fuse-ld=mold" -DCMAKE_SHARED_LINKER_FLAGS="-fuse-ld=mold" $EXTRA_CMAKE_FLAGS && \
     make -j$(nproc) && \
     make install && \
     cd ../.. && rm -rf SVT-AV1-master SVT-AV1-master.tar.gz
@@ -56,6 +60,8 @@ RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
     CONF_FLAGS="--enable-gpl --enable-nonfree --enable-libx264 --enable-libx265 --enable-libsvtav1 --enable-libdav1d --enable-openssl --enable-nvenc" && \
     if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         CONF_FLAGS="$CONF_FLAGS --enable-libvpl --enable-vaapi"; \
+    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
+        CONF_FLAGS="$CONF_FLAGS --cpu armv8-a"; \
     fi && \
     ./configure $CONF_FLAGS \
         --extra-cflags="-I/usr/local/include" \
@@ -108,15 +114,17 @@ RUN ldconfig
 
 # Set Intel-specific envs only if on amd64
 RUN if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
-        echo "ENV LIBVA_DRIVER_NAME=iHD" >> /etc/environment && \
-        echo "ENV ONEVPL_DEVICE=GPU" >> /etc/environment; \
-    fi
+    echo "ENV LIBVA_DRIVER_NAME=iHD" >> /etc/environment && \
+    echo "ENV ONEVPL_DEVICE=GPU" >> /etc/environment && \
+    echo "ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri" >> /etc/environment && \
+    echo "ENV LD_LIBRARY_PATH=/usr/local/lib" >> /etc/environment; \
+fi
 
-# To ensure the variables are available to the shell, we set them conditionally in a way Docker understands or handle it at runtime.
-# Since ENV is static, we will leave them as is but the code handles USE_GPU=false.
-# We'll set them here and the user can override them or the app can ignore them.
+# These are defaults; can be overridden at runtime.
 ENV LIBVA_DRIVER_NAME=iHD
 ENV ONEVPL_DEVICE=GPU
+ENV LIBVA_DRIVERS_PATH=/usr/lib/x86_64-linux-gnu/dri
+ENV LD_LIBRARY_PATH=/usr/local/lib
 
 # Setup python symlink
 RUN ln -s /usr/bin/python3 /usr/bin/python

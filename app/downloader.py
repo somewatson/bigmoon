@@ -340,16 +340,18 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264', devi
     p = presets.get(preset, presets['balanced'])
     
     codec_map = {
-        'H.264': {'hw': 'h264_vaapi', 'sw': 'libx264', 'prefix': 'h264'},
-        'H.265': {'hw': 'hevc_vaapi', 'sw': 'libx265', 'prefix': 'h265'},
-        'AV1': {'hw': 'av1_vaapi', 'sw': 'libsvtav1', 'prefix': 'av1'},
-        'x264': {'hw': None, 'sw': 'libx264', 'prefix': 'h264'}
+        'H.264': {'hw_vaapi': 'h264_vaapi', 'hw_qsv': 'h264_qsv', 'sw': 'libx264', 'prefix': 'h264'},
+        'H.265': {'hw_vaapi': 'hevc_vaapi', 'hw_qsv': 'hevc_qsv', 'sw': 'libx265', 'prefix': 'h265'},
+        'AV1': {'hw_vaapi': 'av1_vaapi', 'hw_qsv': 'av1_qsv', 'sw': 'libsvtav1', 'prefix': 'av1'},
+        'x264': {'hw_vaapi': None, 'hw_qsv': None, 'sw': 'libx264', 'prefix': 'h264'}
     }
     
     mapping = codec_map.get(codec, codec_map['H.264'])
     encoders = []
-    if mapping['hw']:
-        encoders.append(mapping['hw'])
+    if mapping['hw_vaapi']:
+        encoders.append(mapping['hw_vaapi'])
+    if mapping['hw_qsv']:
+        encoders.append(mapping['hw_qsv'])
     encoders.append(mapping['sw'])
     
     full_log = []
@@ -361,22 +363,36 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264', devi
         f.write(f"Compression Task {task_id} started\n")
     
     for encoder in encoders:
-
+ 
         prefix = mapping['prefix']
-        is_hw = 'vaapi' in encoder
+        is_vaapi = 'vaapi' in encoder
+        is_qsv = 'qsv' in encoder
+        is_hw = is_vaapi or is_qsv
         preset_key = f"{prefix}_{'hw' if is_hw else 'sw'}"
         current_preset = p.get(preset_key, 'medium')
         
         cmd = [
             'ffmpeg',
             '-y',
-            '-vaapi_device', device_path,
-            '-i', input_path,
         ]
+        if is_vaapi:
+            cmd.extend(['-vaapi_device', device_path])
+        elif is_qsv:
+            # QSV often uses the same device path or doesn't need it if env vars are set
+            # But for consistency with VAAPI, we can try adding it or rely on VPL env vars
+            cmd.extend(['-vaapi_device', device_path])
+            
+        cmd.extend(['-i', input_path])
+        
         if is_hw:
-            cmd.extend(['-vf', 'format=nv12,hwupload'])
+            if is_vaapi:
+                cmd.extend(['-vf', 'format=nv12,hwupload'])
+            elif is_qsv:
+                # QSV usually needs a different filter chain or handles it internally
+                cmd.extend(['-vf', 'format=nv12,hwupload'])
         
         cmd.extend(['-c:v', encoder])
+
         
         if is_hw:
             cmd.extend(['-global_quality', p['crf']])
