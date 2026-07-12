@@ -38,14 +38,14 @@ async function loadFiles() {
             const thumbUrl = `/api/thumbnails/${encodeURIComponent(file)}`;
             
             // Dynamic hardware options based on capabilities
-            let hwOptions = `<option value="auto" selected>Auto</option>`;
+            let hwOptions = `<option value="auto" selected>Auto (Recommended)</option>`;
             if (capabilities.intel) {
-                if (capabilities.qsv) hwOptions += `<option value="qsv">QSV</option>`;
-                if (capabilities.vaapi) hwOptions += `<option value="vaapi">VA-API</option>`;
+                if (capabilities.qsv) hwOptions += `<option value="qsv">Intel QuickSync (Fastest, HW) (Best)</option>`;
+                if (capabilities.vaapi) hwOptions += `<option value="vaapi">VA-API (Fast, HW)</option>`;
             } else if (capabilities.capabilities.length > 0) {
-                hwOptions += `<option value="hardware">Hardware Accelerated</option>`;
+                hwOptions += `<option value="hardware">Hardware Accelerated (Fast) (Best)</option>`;
             }
-            hwOptions += `<option value="sw">SW</option>`;
+            hwOptions += `<option value="sw">Software (Slowest, High Quality)</option>`;
 
             item.innerHTML = `
                 <div class="checkbox-wrapper">
@@ -61,15 +61,21 @@ async function loadFiles() {
                 </div>
             <div class="compress-controls">
                 ${videoId ? `<button onclick="previewVideo('${videoId}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s; margin-right: 10px;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
-                <select id="codec-${encodeURIComponent(file)}">
-                    <option value="AV1" selected>AV1</option>
-                    <option value="H.264">H.264</option>
-                    <option value="H.265">H.265</option>
-                    <option value="x264">x264 (SW)</option>
-                </select>
-                <select id="hwpref-${encodeURIComponent(file)}">
-                    ${hwOptions}
-                </select>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <select id="codec-${encodeURIComponent(file)}">
+                        <option value="AV1" selected>AV1</option>
+                        <option value="H.264">H.264</option>
+                        <option value="H.265">H.265</option>
+                        <option value="x264">x264 (SW)</option>
+                    </select>
+                    <span style="cursor: help; font-size: 0.8rem; color: var(--text-dim);" data-tooltip="AV1: Best compression, high CPU. H.264: Max compatibility. H.265: Balanced. x264: High quality software encoding.">ⓘ</span>
+                </div>
+                <div style="display: flex; align-items: center; gap: 5px;">
+                    <select id="hwpref-${encodeURIComponent(file)}">
+                        ${hwOptions}
+                    </select>
+                    <span style="cursor: help; font-size: 0.8rem; color: var(--text-dim);" data-tooltip="Hardware acceleration uses your GPU to encode videos much faster than your CPU.">ⓘ</span>
+                </div>
                 <select id="preset-${encodeURIComponent(file)}">
                     <option value="fast">Fast</option>
                     <option value="balanced" selected>Balanced</option>
@@ -77,7 +83,7 @@ async function loadFiles() {
                 </select>
                 <button class="compress-btn" data-filename="${encodeURIComponent(file)}">Compress</button>
             </div>
-    
+            
             `;
             
             item.querySelector('.compress-btn').onclick = () => {

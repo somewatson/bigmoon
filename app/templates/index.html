@@ -133,7 +133,7 @@
                 <p style="color: var(--text-dim); font-size: 0.9rem; margin: 0;">Select settings for the selected files.</p>
                 
                 <div class="form-group">
-                    <label>Codec</label>
+                    <label>Codec <span style="cursor: help; font-size: 0.8rem; color: var(--text-dim);" data-tooltip="AV1: Best compression, high CPU. H.264: Max compatibility. H.265: Balanced. x264: High quality software encoding.">ⓘ</span></label>
                     <select id="bulkCodec">
                         <option value="AV1" selected>AV1 (Best Compression)</option>
                         <option value="H.264">H.264 (Max Compatibility)</option>
@@ -143,7 +143,7 @@
                 </div>
                 
                 <div class="form-group">
-                    <label>Hardware Acceleration</label>
+                    <label>Hardware Acceleration <span style="cursor: help; font-size: 0.8rem; color: var(--text-dim);" data-tooltip="Hardware acceleration uses your GPU to encode videos much faster than your CPU.">ⓘ</span></label>
                     <select id="bulkHwPref">
                         <option value="auto" selected>Auto (Recommended)</option>
                         <option value="qsv">Intel QuickSync (QSV)</option>

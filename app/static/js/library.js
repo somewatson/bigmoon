@@ -217,12 +217,12 @@ async function confirmBulkCompress() {
         // Reset and update options
         hwPrefSelect.innerHTML = '<option value="auto" selected>Auto (Recommended)</option>';
         if (capabilities.intel) {
-            if (capabilities.qsv) hwPrefSelect.innerHTML += '<option value="qsv">Intel QuickSync (QSV)</option>';
-            if (capabilities.vaapi) hwPrefSelect.innerHTML += '<option value="vaapi">VA-API</option>';
+            if (capabilities.qsv) hwPrefSelect.innerHTML += '<option value="qsv">Intel QuickSync (Fastest, HW) (Best)</option>';
+            if (capabilities.vaapi) hwPrefSelect.innerHTML += '<option value="vaapi">VA-API (Fast, HW)</option>';
         } else if (capabilities.capabilities.length > 0) {
-            hwPrefSelect.innerHTML += '<option value="hardware">Hardware Accelerated</option>';
+            hwPrefSelect.innerHTML += '<option value="hardware">Hardware Accelerated (Fast) (Best)</option>';
         }
-        hwPrefSelect.innerHTML += '<option value="sw">Software (CPU)</option>';
+        hwPrefSelect.innerHTML += '<option value="sw">Software (Slowest, High Quality)</option>';
     } catch (e) {
         console.error('Failed to update bulk hardware options:', e);
     }
