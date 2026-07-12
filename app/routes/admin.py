@@ -181,18 +181,20 @@ def system_capabilities():
         encoders = result.stdout
         
         # Detection logic
-        qsv = ('h264_qsv' in encoders or 'hevc_qsv' in encoders) and os.path.exists('/dev/dri/renderD128')
-        nvenc = ('h264_nvenc' in encoders or 'hevc_nvenc' in encoders) and os.path.exists('/dev/nvidia0')
-        vaapi = ('h264_vaapi' in encoders or 'hevc_vaapi' in encoders) and os.path.exists('/dev/dri/renderD128')
-        amf = 'h264_amf' in encoders or 'hevc_amf' in encoders
+        caps = {
+            'qsv': ('h264_qsv' in encoders or 'hevc_qsv' in encoders) and os.path.exists('/dev/dri/renderD128'),
+            'nvenc': ('h264_nvenc' in encoders or 'hevc_nvenc' in encoders) and os.path.exists('/dev/nvidia0'),
+            'vaapi': ('h264_vaapi' in encoders or 'hevc_vaapi' in encoders) and os.path.exists('/dev/dri/renderD128'),
+            'amf': 'h264_amf' in encoders or 'hevc_amf' in encoders
+        }
         
         return jsonify({
-            'intel': qsv or vaapi,
-            'qsv': qsv,
-            'vaapi': vaapi,
-            'nvenc': nvenc,
-            'amf': amf,
-            'capabilities': [cap for cap in ['qsv', 'vaapi', 'nvenc', 'amf'] if locals()[cap]]
+            'intel': caps['qsv'] or caps['vaapi'],
+            'qsv': caps['qsv'],
+            'vaapi': caps['vaapi'],
+            'nvenc': caps['nvenc'],
+            'amf': caps['amf'],
+            'capabilities': [cap for cap, enabled in caps.items() if enabled]
         })
     except Exception as e:
         return jsonify({'error': str(e)}), 500
