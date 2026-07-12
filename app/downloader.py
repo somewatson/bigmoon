@@ -46,7 +46,7 @@ def compression_worker(device_path):
             if task_data is None: # Sentinel for shutdown
                 break
             
-            task_id, input_filename, preset, user_id, codec = task_data
+            task_id, input_filename, preset, user_id, codec, hw_pref = task_data
             
             # Check if task was cancelled while waiting in queue
             from main import app
@@ -58,7 +58,7 @@ def compression_worker(device_path):
                     continue
             
             print(f"[Worker {device_path}] Processing task {task_id}: {input_filename}")
-            compress_video(input_filename, preset, task_id, user_id, codec, device_path)
+                compress_video(input_filename, preset, task_id, user_id, codec, device_path, hw_pref)
             
             compression_queue.task_done()
         except Exception as e:
@@ -288,7 +288,7 @@ def download_vod(url, video_id, task_id):
         active_processes.pop(task_id, None)
 
 
-def compress_video(input_filename, preset, task_id, user_id, codec='H.264', device_path='/dev/dri/renderD128'):
+def compress_video(input_filename, preset, task_id, user_id, codec='H.264', device_path='/dev/dri/renderD128', hw_pref='auto'):
     os.makedirs(DOWNLOADS_DIR, exist_ok=True)
     input_path = os.path.join(DOWNLOADS_DIR, input_filename)
     # Use os.path.basename to ensure we only have the filename, not the full path
@@ -348,10 +348,18 @@ def compress_video(input_filename, preset, task_id, user_id, codec='H.264', devi
     
     mapping = codec_map.get(codec, codec_map['H.264'])
     encoders = []
-    if mapping['hw_qsv']:
-        encoders.append(mapping['hw_qsv'])
-    if mapping['hw_vaapi']:
-        encoders.append(mapping['hw_vaapi'])
+    
+    # Hardware preference logic
+    if hw_pref == 'qsv':
+        if mapping['hw_qsv']: encoders.append(mapping['hw_qsv'])
+        if mapping['hw_vaapi']: encoders.append(mapping['hw_vaapi'])
+    elif hw_pref == 'vaapi':
+        if mapping['hw_vaapi']: encoders.append(mapping['hw_vaapi'])
+        if mapping['hw_qsv']: encoders.append(mapping['hw_qsv'])
+    else: # auto - prefer QSV
+        if mapping['hw_qsv']: encoders.append(mapping['hw_qsv'])
+        if mapping['hw_vaapi']: encoders.append(mapping['hw_vaapi'])
+    
     encoders.append(mapping['sw'])
     
     full_log = []
@@ -476,10 +484,10 @@ def start_download_async(url, video_id, task_id):
     thread.start()
     return thread
 
-def start_compress_async(input_filename, preset, task_id, user_id, codec='H.264'):
+def start_compress_async(input_filename, preset, task_id, user_id, codec='H.264', hw_pref='auto'):
     """Adds a compression task to the global queue to be processed sequentially."""
     start_compression_worker()
-    compression_queue.put((task_id, input_filename, preset, user_id, codec))
+    compression_queue.put((task_id, input_filename, preset, user_id, codec, hw_pref))
     print(f"Task {task_id} added to compression queue.")
     return None # No longer returns a thread object
 

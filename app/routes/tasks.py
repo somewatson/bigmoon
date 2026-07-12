@@ -142,6 +142,7 @@ def compress_video():
     filename = data.get('filename')
     preset = data.get('preset', 'balanced')
     codec = data.get('codec', 'H.264')
+    hw_pref = data.get('hw_pref', 'auto')
     
     if not filename:
         return jsonify({'error': 'Filename is required'}), 400
@@ -155,5 +156,5 @@ def compress_video():
     db.session.add(task)
     db.session.commit()
     
-    start_compress_async(filename, preset, task.id, current_user.id, codec)
+    start_compress_async(filename, preset, task.id, current_user.id, codec, hw_pref)
     return jsonify({'message': 'Compression started in background', 'taskId': task.id})
