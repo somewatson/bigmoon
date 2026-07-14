@@ -270,10 +270,43 @@
 
         <div id="tab-global-library" class="tab-content">
             <div class="sticky-header">
-                <h2>Global Library</h2>
-                <p style="color: var(--text-dim); font-size: 0.9rem; margin-bottom: 20px; max-width: 800px;">This is a community library containing all VODs archived by all users of this instance.</p>
+                <div class="library-header">
+                    <div style="display: flex; align-items: center; gap: 20px;">
+                        <h2>Global Library</h2>
+                        <input type="text" id="globalLibrarySearch" placeholder="Filter global library..." style="max-width: 300px; padding: 6px 12px; font-size: 0.9rem;" oninput="loadGlobalLibrary()">
+                        <select id="globalLibrarySort" style="padding: 6px; font-size: 0.9rem;" onchange="loadGlobalLibrary()">
+                            <option value="date" selected>Sort by Date</option>
+                            <option value="name">Sort by Name</option>
+                            <option value="size">Sort by Size</option>
+                        </select>
+                    </div>
+
+                    <div id="globalBulkActions" class="bulk-actions" style="opacity: 0.5; pointer-events: none;">
+                        <span id="globalSelectedCount" style="font-size: 0.85rem; color: var(--text-dim);">Read-Only</span>
+                        <button disabled style="background: var(--primary); font-size: 0.8rem; opacity: 0.5;">Batch Compress</button>
+                        <button disabled style="background: var(--error); font-size: 0.8rem; opacity: 0.5;">Delete Selected</button>
+                    </div>
+                </div>
             </div>
-            <div id="globalLibraryGrid" class="task-list"></div>
+            <p style="color: var(--text-dim); margin-bottom: 20px;">Community archive containing all VODs archived by all users of this instance.</p>
+            
+            <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--primary); padding-left: 10px; display: flex; align-items: center; gap: 10px;">
+                Original Downloads
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <input type="checkbox" disabled style="width: auto; height: auto; margin: 0;">
+                    <label style="font-size: 0.8rem; color: var(--text-dim); cursor: not-allowed;">Select All</label>
+                </div>
+            </h3>
+            <div id="globalLibraryListOriginals" class="task-list" style="margin-bottom: 40px;"></div>
+            
+            <h3 style="font-size: 1.1rem; color: white; margin-bottom: 15px; border-left: 4px solid var(--success); padding-left: 10px; display: flex; align-items: center; gap: 10px;">
+                Compressed Versions
+                <div style="display: flex; align-items: center; gap: 5px; margin-left: auto;">
+                    <input type="checkbox" disabled style="width: auto; height: auto; margin: 0;">
+                    <label style="font-size: 0.8rem; color: var(--text-dim); cursor: not-allowed;">Select All</label>
+                </div>
+            </h3>
+            <div id="globalLibraryListCompressed" class="task-list"></div>
         </div>
 
 

@@ -12,10 +12,11 @@ async function checkThumbnailStatus(filename) {
 }
 
 window.loadLibraryRequestId = 0;
+window.loadGlobalLibraryRequestId = 0;
 
-function toggleLibraryLoading(isLoading) {
-    const listOriginals = document.getElementById('libraryListOriginals');
-    const listCompressed = document.getElementById('libraryListCompressed');
+function toggleLibraryLoading(isLoading, isGlobal = false) {
+    const listOriginals = isGlobal ? document.getElementById('globalLibraryListOriginals') : document.getElementById('libraryListOriginals');
+    const listCompressed = isGlobal ? document.getElementById('globalLibraryListCompressed') : document.getElementById('libraryListCompressed');
     
     if (isLoading) {
         const skeletons = Array.from({ length: 5 }).map(() => `
@@ -29,11 +30,52 @@ function toggleLibraryLoading(isLoading) {
             </div>
         `).join('');
         
-        listOriginals.innerHTML = skeletons;
-        listCompressed.innerHTML = '';
-    } else {
-        // The actual data replacement happens in loadLibrary
+        if (listOriginals) listOriginals.innerHTML = skeletons;
+        if (listCompressed) listCompressed.innerHTML = '';
     }
+}
+
+function createFileItemHtml(file, isGlobal) {
+    let sizeInfo = `Size: ${file.size}`;
+    if (file.savings) {
+        sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
+    }
+    
+    const encoderBadge = file.encoder_type 
+        ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
+        : '';
+    
+    const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
+    const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
+    
+    const thumbHtml = file.isIncomplete 
+        ? `<div class="thumb-preview incomplete" style="background: #333; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.6rem; color: var(--text-dim); border: 1px dashed #555;">⚠️<br>Incomplete</div>`
+        : `<img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">`;
+
+    const escapedFilename = file.filename.replace(/'/g, "\\'");
+    
+    return `
+        <div class="checkbox-wrapper">
+            ${isGlobal ? '' : `<input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">`}
+        </div>
+        ${thumbHtml}
+        <div class="file-details">
+            <h4 class="file-name">${file.filename}</h4>
+            <div class="file-meta">
+                <span class="meta-item">${sizeInfo}</span>
+                <span class="meta-item">• Type: ${file.type}</span>
+                <span class="meta-item">• ${createdDate}</span>
+                ${file.user_id ? `<span class="meta-item" style="color: var(--text-dim); font-style: italic;">(User ID: ${file.user_id})</span>` : ''}
+                ${encoderBadge}
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px; align-items: center;">
+            <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
+            ${(file.filename && !file.isIncomplete) ? `<button onclick="previewVideo('${escapedFilename}', 'file')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
+            ${file.video_id ? `<button onclick="viewChat('${file.video_id}')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="View Chat">View Chat</button>` : ''}
+            ${file.video_id ? `<button onclick="window.open('/api/chat/export/${file.video_id}', '_blank')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="Download Chat JSON">Chat JSON</button>` : ''}
+        </div>
+    `;
 }
 
 async function loadLibrary() {
@@ -87,46 +129,7 @@ async function loadLibrary() {
         for (const file of fileDataWithStatus) {
             const item = document.createElement('div');
             item.className = 'file-item';
-            
-            let sizeInfo = `Size: ${file.size}`;
-            if (file.savings) {
-                sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
-            }
-            
-            const encoderBadge = file.encoder_type 
-                ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
-                : '';
-            
-            const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
-            const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
-            
-            const thumbHtml = file.isIncomplete 
-                ? `<div class="thumb-preview incomplete" style="background: #333; display: flex; align-items: center; justify-content: center; text-align: center; font-size: 0.6rem; color: var(--text-dim); border: 1px dashed #555;">⚠️<br>Incomplete</div>`
-                : `<img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">`;
-
-            const escapedFilename = file.filename.replace(/'/g, "\\'");
-            item.innerHTML = `
-                <div class="checkbox-wrapper">
-                    <input type="checkbox" class="file-checkbox" data-filename="${encodeURIComponent(file.filename)}" onchange="handleFileSelection(this)">
-                </div>
-                ${thumbHtml}
-                <div class="file-details">
-                    <h4 class="file-name">${file.filename}</h4>
-                    <div class="file-meta">
-                        <span class="meta-item">${sizeInfo}</span>
-                        <span class="meta-item">• Type: ${file.type}</span>
-                        <span class="meta-item">• ${createdDate}</span>
-                        ${file.user_id ? `<span class="meta-item" style="color: var(--text-dim); font-style: italic;">(User ID: ${file.user_id})</span>` : ''}
-                        ${encoderBadge}
-                    </div>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
-                    ${(file.filename && !file.isIncomplete) ? `<button onclick="previewVideo('${escapedFilename}', 'file')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
-                    ${file.video_id ? `<button onclick="viewChat('${file.video_id}')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="View Chat">View Chat</button>` : ''}
-                    ${file.video_id ? `<button onclick="window.open('/api/chat/export/${file.video_id}', '_blank')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="Download Chat JSON">Chat JSON</button>` : ''}
-                </div>
-            `;
+            item.innerHTML = createFileItemHtml(file, false);
             
             if (file.type === 'compress') {
                 fragCompressed.appendChild(item);
