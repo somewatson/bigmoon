@@ -280,75 +280,83 @@ function toggleAllFiles(checkbox, containerId) {
 window.toggleAllFiles = toggleAllFiles;
 
 async function loadGlobalLibrary() {
-    const grid = document.getElementById('globalLibraryGrid');
-    if (!grid) return;
+    const listOriginals = document.getElementById('globalLibraryListOriginals');
+    const listCompressed = document.getElementById('globalLibraryListCompressed');
+    const sortBy = document.getElementById('globalLibrarySort')?.value || 'date';
 
-    grid.innerHTML = '<div class="empty-state">Loading community library...</div>';
+    const requestId = ++window.loadGlobalLibraryRequestId;
+    toggleLibraryLoading(true, true);
 
     try {
         const response = await apiFetch('/api/library/global');
         const data = await response.json();
 
+        if (requestId !== window.loadGlobalLibraryRequestId) return;
+
         if (!data.files || data.files.length === 0) {
-            grid.innerHTML = `
-                <div class="empty-state">
-                    <div class="icon">🌍</div>
-                    <h3>Global Library is empty</h3>
-                    <p>No VODs have been archived by the community yet.</p>
-                </div>
-            `;
+            toggleLibraryLoading(false, true);
+            if (listOriginals) {
+                listOriginals.innerHTML = `
+                    <div class="empty-state">
+                        <div class="icon">🌍</div>
+                        <h3>Global Library is empty</h3>
+                        <p>No VODs have been archived by the community yet.</p>
+                    </div>
+                `;
+            }
+            if (listCompressed) listCompressed.innerHTML = '';
             return;
         }
 
-        const frag = document.createDocumentFragment();
-        
-        for (const file of data.files) {
+        // Implement Sorting
+        data.files.sort((a, b) => {
+            if (sortBy === 'date') {
+                return new Date(b.created_at || 0) - new Date(a.created_at || 0);
+            } else if (sortBy === 'name') {
+                return a.filename.localeCompare(b.filename);
+            } else if (sortBy === 'size') {
+                return (b.size_bytes || 0) - (a.size_bytes || 0);
+            }
+            return 0;
+        });
+
+        const fragOriginals = document.createDocumentFragment();
+        const fragCompressed = document.createDocumentFragment();
+
+        const fileDataWithStatus = await Promise.all(data.files.map(async (file) => {
+            const isIncomplete = await checkThumbnailStatus(file.filename);
+            return { ...file, isIncomplete };
+        }));
+
+        for (const file of fileDataWithStatus) {
             const item = document.createElement('div');
             item.className = 'file-item';
-            
-            let sizeInfo = `Size: ${file.size}`;
-            if (file.savings) {
-                sizeInfo += ` | <span style="color: var(--success); font-weight: bold;">Saved: ${file.savings}</span>`;
-            }
-            
-            const encoderBadge = file.encoder_type 
-                ? `<span class="badge ${file.encoder_type === 'HW' ? 'badge-hw' : 'badge-sw'}">${file.encoder_type}</span>` 
-                : '';
-            
-            const thumbUrl = `/api/thumbnails/${encodeURIComponent(file.filename)}`;
-            const createdDate = file.created_at ? new Date(file.created_at).toLocaleString() : 'Unknown Date';
-            
-            const thumbHtml = `<img src="${thumbUrl}" class="thumb-preview" alt="preview" onerror="this.classList.add('error')">`;
-            const escapedFilename = file.filename.replace(/'/g, "\\'");
+            item.innerHTML = createFileItemHtml(file, true);
 
-            item.innerHTML = `
-                <div class="checkbox-wrapper"></div>
-                ${thumbHtml}
-                <div class="file-details">
-                    <h4 class="file-name">${file.filename}</h4>
-                    <div class="file-meta">
-                        <span class="meta-item">${sizeInfo}</span>
-                        <span class="meta-item">• Type: ${file.type}</span>
-                        <span class="meta-item">• ${createdDate}</span>
-                        ${file.user_id ? `<span class="meta-item" style="color: var(--text-dim); font-style: italic;">(User ID: ${file.user_id})</span>` : ''}
-                        ${encoderBadge}
-                    </div>
-                </div>
-                <div style="display: flex; gap: 8px; align-items: center;">
-                    <a class="btn-download" href="/downloads/${file.filename}">Download to PC</a>
-                    ${(file.filename) ? `<button onclick="previewVideo('${escapedFilename}', 'file')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
-                    ${file.video_id ? `<button onclick="viewChat('${file.video_id}')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="View Chat">View Chat</button>` : ''}
-                    ${file.video_id ? `<button onclick="window.open('/api/chat/export/${file.video_id}', '_blank')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="Download Chat JSON">Chat JSON</button>` : ''}
-                </div>
-            `;
-            frag.appendChild(item);
+            if (file.type === 'compress') {
+                fragCompressed.appendChild(item);
+            } else {
+                fragOriginals.appendChild(item);
+            }
         }
 
-        grid.innerHTML = '';
-        grid.appendChild(frag);
+        if (requestId !== window.loadGlobalLibraryRequestId) return;
+
+        toggleLibraryLoading(false, true);
+        if (listOriginals) {
+            listOriginals.innerHTML = '';
+            listOriginals.appendChild(fragOriginals);
+        }
+        if (listCompressed) {
+            listCompressed.innerHTML = '';
+            listCompressed.appendChild(fragCompressed);
+        }
 
     } catch (e) {
-        grid.innerHTML = '<div class="empty-state">Failed to load global library.</div>';
+        toggleLibraryLoading(false, true);
+        if (listOriginals) {
+            listOriginals.innerHTML = '<div class="empty-state">Failed to load global library.</div>';
+        }
         console.error('Global library load failed:', e);
     }
 }
