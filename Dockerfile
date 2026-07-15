@@ -60,8 +60,6 @@ RUN wget https://ffmpeg.org/releases/ffmpeg-snapshot.tar.bz2 && \
     CONF_FLAGS="--enable-gpl --enable-nonfree --enable-libx264 --enable-libx265 --enable-libsvtav1 --enable-libdav1d --enable-openssl --enable-nvenc" && \
     if [ "$TARGETPLATFORM" = "linux/amd64" ]; then \
         CONF_FLAGS="$CONF_FLAGS --enable-libvpl --enable-vaapi"; \
-    elif [ "$TARGETPLATFORM" = "linux/arm64" ]; then \
-        CONF_FLAGS="$CONF_FLAGS --cpu armv8-a"; \
     fi && \
     ./configure $CONF_FLAGS \
         --extra-cflags="-I/usr/local/include" \
