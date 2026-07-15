@@ -82,6 +82,7 @@ async function loadLibrary() {
     const listOriginals = document.getElementById('libraryListOriginals');
     const listCompressed = document.getElementById('libraryListCompressed');
     const sortBy = document.getElementById('librarySort').value;
+    const searchQuery = document.getElementById('librarySearch')?.value.toLowerCase() || '';
 
     const requestId = ++window.loadLibraryRequestId;
     toggleLibraryLoading(true);
@@ -105,8 +106,15 @@ async function loadLibrary() {
             return;
         }
 
-        // Implement Sorting
-        data.files.sort((a, b) => {
+        // Implement Filtering and Sorting
+        let filteredFiles = data.files;
+        if (searchQuery) {
+            filteredFiles = data.files.filter(file => 
+                file.filename.toLowerCase().includes(searchQuery)
+            );
+        }
+
+        filteredFiles.sort((a, b) => {
             if (sortBy === 'date') {
                 return new Date(b.created_at || 0) - new Date(a.created_at || 0);
             } else if (sortBy === 'name') {
@@ -115,13 +123,12 @@ async function loadLibrary() {
                 return (b.size_bytes || 0) - (a.size_bytes || 0);
             }
             return 0;
-            return 0;
         });
 
         const fragOriginals = document.createDocumentFragment();
         const fragCompressed = document.createDocumentFragment();
         
-        const fileDataWithStatus = await Promise.all(data.files.map(async (file) => {
+        const fileDataWithStatus = await Promise.all(filteredFiles.map(async (file) => {
             const isIncomplete = await checkThumbnailStatus(file.filename);
             return { ...file, isIncomplete };
         }));
@@ -283,6 +290,7 @@ async function loadGlobalLibrary() {
     const listOriginals = document.getElementById('globalLibraryListOriginals');
     const listCompressed = document.getElementById('globalLibraryListCompressed');
     const sortBy = document.getElementById('globalLibrarySort')?.value || 'date';
+    const searchQuery = document.getElementById('globalLibrarySearch')?.value.toLowerCase() || '';
 
     const requestId = ++window.loadGlobalLibraryRequestId;
     toggleLibraryLoading(true, true);
@@ -308,8 +316,15 @@ async function loadGlobalLibrary() {
             return;
         }
 
-        // Implement Sorting
-        data.files.sort((a, b) => {
+        // Implement Filtering and Sorting
+        let filteredFiles = data.files;
+        if (searchQuery) {
+            filteredFiles = data.files.filter(file => 
+                file.filename.toLowerCase().includes(searchQuery)
+            );
+        }
+
+        filteredFiles.sort((a, b) => {
             if (sortBy === 'date') {
                 return new Date(b.created_at || 0) - new Date(a.created_at || 0);
             } else if (sortBy === 'name') {
@@ -323,7 +338,7 @@ async function loadGlobalLibrary() {
         const fragOriginals = document.createDocumentFragment();
         const fragCompressed = document.createDocumentFragment();
 
-        const fileDataWithStatus = await Promise.all(data.files.map(async (file) => {
+        const fileDataWithStatus = await Promise.all(filteredFiles.map(async (file) => {
             const isIncomplete = await checkThumbnailStatus(file.filename);
             return { ...file, isIncomplete };
         }));
