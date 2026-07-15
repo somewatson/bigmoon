@@ -210,7 +210,6 @@ def logout():
     return redirect(url_for('login'))
 
 @app.route('/')
-@login_required
 def index():
     tab = request.args.get('tab', 'search')
     return render_template('index.html', current_tab=tab)
