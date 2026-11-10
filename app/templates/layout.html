@@ -224,7 +224,9 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='js/logs.js') }}"></script>
+    <script>
+        window.currentUserRole = '{{ current_user.role }}';
+    </script>
     <script>
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');

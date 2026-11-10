@@ -220,6 +220,34 @@ def ffmpeg_status():
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
+@admin_bp.route('/api/admin/sync-filesystem', methods=['POST'])
+@login_required
+def sync_filesystem():
+    if current_user.role != 'admin':
+        return jsonify({'error': 'Forbidden'}), 403
+    
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    try:
+        # Get all files actually on disk
+        files_on_disk = set(os.listdir(downloads_dir))
+        
+        # Find all tasks that refer to files
+        all_tasks = DownloadTask.query.all()
+        deleted_count = 0
+        
+        for task in all_tasks:
+            if task.filename and task.filename not in files_on_disk:
+                # The file is gone from disk, remove the DB record
+                db.session.delete(task)
+                deleted_count += 1
+        
+        db.session.commit()
+        return jsonify({'message': f'Sync complete. Removed {deleted_count} stale records from database.'})
+    except Exception as e:
+        from flask import current_app
+        current_app.logger.error(f"Error syncing filesystem: {e}")
+        return jsonify({'error': str(e)}), 500
+
 @admin_bp.route('/api/system/metrics')
 @login_required
 def system_metrics():
