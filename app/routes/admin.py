@@ -3,8 +3,8 @@ import subprocess
 import shutil
 from flask import Blueprint, render_template, request, jsonify
 from flask_login import login_required, current_user
-from models import db, User, DownloadTask
-from utils.system import format_size
+from app.models import db, User, DownloadTask
+from app.utils.system import format_size
 
 admin_bp = Blueprint('admin', __name__)
 

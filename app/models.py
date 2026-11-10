@@ -51,6 +51,13 @@ class MonitoredChannel(db.Model):
     delete_original = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
 
+class SharedLink(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    task_id = db.Column(db.Integer, db.ForeignKey('download_task.id'), nullable=False)
+    token = db.Column(db.String(64), unique=True, nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=db.func.current_timestamp())
+    expires_at = db.Column(db.DateTime, nullable=False)
+
 class ChatMessage(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     task_id = db.Column(db.Integer, db.ForeignKey('download_task.id'), nullable=False)

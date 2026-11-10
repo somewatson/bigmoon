@@ -17,16 +17,16 @@ try:
 except ImportError:
     psutil = None
 
-from models import db, User, Favorite, DownloadTask, MonitoredChannel, ChatMessage
-from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path, start_compression_worker
-from chat_manager import start_chat_download_async, download_chat_sync
-from utils.system import cleanup_temp_files
+from app.models import db, User, Favorite, DownloadTask, MonitoredChannel, ChatMessage
+from app.downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, shutdown_all_tasks, get_log_path, start_compression_worker
+from app.chat_manager import start_chat_download_async, download_chat_sync
+from app.utils.system import cleanup_temp_files
 
 # Import blueprints
-from routes.admin import admin_bp
-from routes.tasks import tasks_bp
-from routes.library import library_bp
-from routes.social import social_bp
+from app.routes.admin import admin_bp
+from app.routes.tasks import tasks_bp
+from app.routes.library import library_bp
+from app.routes.social import social_bp
 
 load_dotenv()
 
@@ -119,6 +119,13 @@ def bootstrap_admin():
         except Exception as e:
             db.session.rollback()
             app.logger.error(f"Failed to create monitored_channel table: {e}")
+
+        try:
+            db.session.execute(db.text("CREATE TABLE IF NOT EXISTS shared_link (id INTEGER PRIMARY KEY AUTOINCREMENT, task_id INTEGER NOT NULL, token TEXT NOT NULL, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, expires_at DATETIME NOT NULL, FOREIGN KEY(task_id) REFERENCES download_task(id))"))
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            app.logger.error(f"Failed to create shared_link table: {e}")
 
         recover_interrupted_tasks()
 

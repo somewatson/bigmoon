@@ -1,9 +1,9 @@
 import os
 from flask import Blueprint, request, jsonify
 from flask_login import login_required, current_user
-from models import db, DownloadTask
-from downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, get_log_path
-from utils.system import format_size
+from app.models import db, DownloadTask
+from app.downloader import start_download_async, start_compress_async, cancel_task, update_task_progress, get_log_path
+from app.utils.system import format_size
 
 tasks_bp = Blueprint('tasks', __name__)
 

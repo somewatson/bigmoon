@@ -6,7 +6,7 @@ import traceback
 import signal
 import queue
 from dotenv import load_dotenv
-from models import db, DownloadTask
+from app.models import db, DownloadTask
 
 load_dotenv()
 

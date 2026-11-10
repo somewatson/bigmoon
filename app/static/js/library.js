@@ -74,6 +74,7 @@ function createFileItemHtml(file, isGlobal) {
             ${(file.filename && !file.isIncomplete) ? `<button onclick="previewVideo('${escapedFilename}', 'file')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Watch Preview">Preview</button>` : ''}
             ${file.video_id ? `<button onclick="viewChat('${file.video_id}')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="View Chat">View Chat</button>` : ''}
             ${file.video_id ? `<button onclick="window.open('/api/chat/export/${file.video_id}', '_blank')" style="background: #2a2a2a; color: #aaa; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: 1px solid #444; transition: 0.2s;" onmouseover="this.style.background='#333'; this.style.color='#fff'" onmouseout="this.style.background='#2a2a2a'; this.style.color='#aaa'" data-tooltip="Download Chat JSON">Chat JSON</button>` : ''}
+            <button onclick="generateShareLink('${escapedFilename}')" style="background: #444; color: white; font-size: 0.8rem; font-weight: bold; padding: 6px 12px; border-radius: 6px; cursor: pointer; border: none; transition: 0.2s;" onmouseover="this.style.background='#555'" onmouseout="this.style.background='#444'" data-tooltip="Generate 24h Shared Link">🔗 Share</button>
         </div>
     `;
 }
@@ -376,4 +377,32 @@ async function loadGlobalLibrary() {
     }
 }
 
+async function generateShareLink(filename) {
+    try {
+        const response = await fetch('/api/library/share', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename })
+        });
+        const data = await response.json();
+        if (data.url) {
+            // Create a temporary input to copy the URL
+            const tempInput = document.createElement('input');
+            tempInput.value = data.url;
+            document.body.appendChild(tempInput);
+            tempInput.select();
+            document.execCommand('copy');
+            document.body.removeChild(tempInput);
+            
+            showToast(`Share link copied to clipboard! Expires in 24h.`, 'success');
+        } else {
+            showToast(`Error: ${data.error}`, 'error');
+        }
+    } catch (e) {
+        showToast('Failed to generate share link.', 'error');
+        console.error(e);
+    }
+}
+
 window.loadGlobalLibrary = loadGlobalLibrary;
+window.generateShareLink = generateShareLink;

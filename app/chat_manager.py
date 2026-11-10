@@ -3,7 +3,7 @@ import threading
 import traceback
 import json
 from datetime import datetime
-from models import db, DownloadTask, ChatMessage
+from app.models import db, DownloadTask, ChatMessage
 
 def download_chat_sync(video_id, task_id):
     """Synchronously downloads chat and saves it to the database and a JSON file."""

@@ -2,9 +2,11 @@ import os
 import subprocess
 from flask import Blueprint, render_template, request, jsonify, send_from_directory
 from flask_login import login_required, current_user
-from models import db, DownloadTask
-from utils.system import format_size
+from app.models import db, DownloadTask, SharedLink
+from app.utils.system import format_size
 from urllib.parse import unquote
+import secrets
+from datetime import datetime, timedelta
 
 library_bp = Blueprint('library', __name__)
 
@@ -136,7 +138,7 @@ def list_library():
                         pass
         else:
             task_type = 'download'
-
+        
         if task:
             encoder_type = task.encoder_type
             created_at = task.created_at
@@ -164,6 +166,61 @@ def list_library():
 def calculate_savings_internal(original, current):
     from utils.system import calculate_savings
     return calculate_savings(original, current)
+
+@library_bp.route('/api/library/share', methods=['POST'])
+@login_required
+def generate_share_link():
+    data = request.json
+    filename = data.get('filename')
+    if not filename:
+        return jsonify({'error': 'Filename is required'}), 400
+    
+    task = DownloadTask.query.filter_by(filename=filename).first()
+    if not task:
+        return jsonify({'error': 'Video task not found'}), 404
+    
+    if task.user_id != current_user.id and current_user.role != 'admin':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.utcnow() + timedelta(hours=24)
+    
+    shared_link = SharedLink(
+        task_id=task.id,
+        token=token,
+        expires_at=expires_at
+    )
+    
+    db.session.add(shared_link)
+    db.session.commit()
+    
+    # We use the request's host to build the full URL
+    host = request.host
+    url = f"http://{host}/share/{token}"
+    
+    return jsonify({'url': url, 'expires_at': expires_at.isoformat()})
+
+@library_bp.route('/share/<token>')
+def share_download(token):
+    shared_link = SharedLink.query.filter_by(token=token).first()
+    
+    if not shared_link:
+        return "Link not found", 404
+    
+    if datetime.utcnow() > shared_link.expires_at:
+        return "Link expired", 410
+    
+    task = DownloadTask.query.get(shared_link.task_id)
+    if not task:
+        return "Video file not found", 404
+    
+    downloads_dir = os.getenv('DOWNLOADS_DIR', '/app/downloads')
+    filename = task.filename
+    
+    if not filename or not os.path.exists(os.path.join(downloads_dir, filename)):
+        return "File not found on disk", 404
+        
+    return send_from_directory(downloads_dir, filename, as_attachment=True)
 
 @library_bp.route('/api/library/bulk-delete', methods=['POST'])
 @login_required

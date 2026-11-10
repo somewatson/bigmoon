@@ -3,8 +3,8 @@ import requests
 from datetime import datetime, timedelta
 from flask import Blueprint, request, jsonify, Response
 from flask_login import login_required, current_user
-from models import db, Favorite, DownloadTask, MonitoredChannel, ChatMessage
-from utils.system import get_twitch_token
+from app.models import db, Favorite, DownloadTask, MonitoredChannel, ChatMessage
+from app.utils.system import get_twitch_token
 
 social_bp = Blueprint('social', __name__)
 
@@ -227,7 +227,7 @@ def download_chat_route(video_id):
     if not task:
         return jsonify({'error': 'Video not found'}), 404
     
-    from chat_manager import start_chat_download_async
+    from app.chat_manager import start_chat_download_async
     start_chat_download_async(clean_id, task.id)
     return jsonify({'message': 'Chat download started in background'})
 
@@ -250,7 +250,7 @@ def get_chat(video_id):
     
     if not messages:
         try:
-            from chat_manager import download_chat_sync
+            from app.chat_manager import download_chat_sync
             vid_id = task.video_id if task.video_id else clean_id
             chat_data = download_chat_sync(vid_id, task.id)
             return jsonify([{
