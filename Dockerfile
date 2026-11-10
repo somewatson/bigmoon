@@ -127,14 +127,14 @@ ENV LD_LIBRARY_PATH=/usr/local/lib
 # Setup python symlink
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-WORKDIR /app
+WORKDIR /
 
 # Install python dependencies
-COPY app/requirements.txt .
-RUN pip3 install --no-cache-dir -r requirements.txt
+COPY app/requirements.txt /app/requirements.txt
+RUN pip3 install --no-cache-dir -r /app/requirements.txt
 
 # Copy application code
-COPY app/ .
+COPY app/ /app
 
 # Create directories for data and downloads
 RUN mkdir -p /data /app/downloads
@@ -143,4 +143,4 @@ RUN mkdir -p /data /app/downloads
 EXPOSE 5000
 
 # Run the application
-CMD ["env", "PYTHONUNBUFFERED=1", "python", "main.py", "--debug"]
+CMD ["env", "PYTHONUNBUFFERED=1", "python", "-m", "app.main", "--debug"]
